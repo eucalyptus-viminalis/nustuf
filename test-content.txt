@@ -1,1 +1,1 @@
-gm from nustuf 🐬
+This is a nustuf test file. If you're reading this, the buy flow worked!
