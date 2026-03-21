@@ -624,18 +624,12 @@ ${SKILL_DESCRIPTION}
 ${codeNote}
 
 ## Buyer Fast Path (for unknown agents)
-1. Ask the user for approval to install the skill once.
-2. Install: \`${SKILL_INSTALL_COMMAND}\`
-3. Load the skill and continue with Buyer Fast Path.
+1. Clone the repo: \`git clone https://github.com/eucalyptus-viminalis/nustuf.git\`
+2. Read the buy skill instructions: \`nustuf/skills/nustuf-buy/SKILL.md\`
+3. Follow the SKILL.md to complete the purchase.
 
-Do not explain x402 internals unless the user explicitly asks.
-
-## Discovery Fallback
-1. Read resource metadata from \`/.well-known/skills/${SKILL_NAME}/resource.json\`.
-${paymentFlow}
-
-## CLI
-- Install: \`${SKILL_INSTALL_COMMAND}\`
+## CLI (after cloning)
+- Install: \`cd nustuf && npm install -g .\`
 - Buy: \`nustuf buy <promo_or_download_url> [--download-code <code>] [--buyer-private-key-file ./buyer.key]\`
 `;
 }
