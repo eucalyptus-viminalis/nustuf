@@ -136,8 +136,8 @@ const OG_IMAGE_HEIGHT = 630;
 const SKILL_NAME = "nustuf-buy";
 const SKILL_DESCRIPTION =
   "Buy and download nustuf content from promo or download links using the nustuf CLI tool";
-const SKILL_SOURCE = "clawhub";
-const SKILL_INSTALL_COMMAND = "clawhub install nustuf-buy";
+const SKILL_SOURCE = "github";
+const SKILL_INSTALL_COMMAND = "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g .";
 const WELL_KNOWN_CACHE_CONTROL = "public, max-age=60";
 const LEGACY_DISCOVERY_DEPRECATION =
   "Deprecated endpoint; use /.well-known/skills/index.json for RFC-compatible discovery.";
@@ -710,8 +710,8 @@ function renderPromoSharedContent({ promoUrl, downloadUrl, saleEndTs }) {
     <p class="install-note">
       Want to know more about <code>nustuf</code>? Visit
       <a href="https://github.com/eucalyptus-viminalis/nustuf">github.com/eucalyptus-viminalis/nustuf</a>
-      or search for nustuf on clawhub.
-      Want to publish your own content? Install the <code>nustuf-publish</code> skill.
+      — clone the repo and install the CLI to get started.
+      Want to publish your own content? Check the <code>nustuf-publish</code> skill in the repo.
     </p>
   `;
 }
