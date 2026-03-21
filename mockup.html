@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>nustuf — mockup</title>
+  <style>
+@font-face {
+  font-family: 'Outward';
+  src: url('public/fonts/outward-round-webfont.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Karrik';
+  src: url('public/fonts/Karrik-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Karrik';
+  src: url('public/fonts/Karrik-Italic.woff2') format('woff2');
+  font-weight: normal;
+  font-style: italic;
+}
+
+body { 
+  font-family: 'Karrik', sans-serif; 
+  margin: 0; 
+  padding: 24px; 
+  background: #121212; 
+  color: #e0e0e0;
+  position: relative;
+  min-height: 100vh;
+}
+body::before {
+  content: 'nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf nustuf';
+  font-family: 'Outward', sans-serif;
+  font-size: 240px;
+  color: #fff;
+  opacity: 0.03;
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  transform: rotate(-25deg);
+  word-spacing: 80px;
+  line-height: 1.4;
+  letter-spacing: 20px;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  word-break: break-all;
+}
+.card { 
+  max-width: 760px; 
+  margin: 0 auto; 
+  border: 1px solid #333; 
+  background: #1a1a1a; 
+  border-radius: 0; 
+  padding: 20px;
+  position: relative;
+  z-index: 1;
+}
+h1 { font-family: 'Karrik', sans-serif; font-weight: normal; margin: 0 0 12px; font-size: 28px; color: #fff; }
+h2 { font-family: 'Karrik', sans-serif; font-weight: normal; margin: 0 0 10px; font-size: 20px; color: #f0f0f0; }
+p { line-height: 1.6; color: #ccc; }
+.kv { margin: 14px 0; font-size: 14px; color: #aaa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.kv strong { color: #e0e0e0; }
+code, pre { 
+  background: #2a2a2a; 
+  border-radius: 0; 
+  padding: 2px 6px; 
+  color: #e0e0e0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+pre { padding: 10px; overflow-x: auto; border: 1px solid #333; }
+a { color: #888; }
+a:hover { color: #fff; }
+.state { display: inline-block; font-size: 12px; border: 1px solid #555; border-radius: 0; padding: 2px 10px; margin-bottom: 12px; color: #aaa; }
+.prompt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.prompt-head p { margin: 0; }
+button.copy-btn { 
+  border: 1px solid #444; 
+  background: #2a2a2a; 
+  color: #e0e0e0; 
+  border-radius: 0; 
+  padding: 6px 10px; 
+  cursor: pointer; 
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; 
+}
+button.copy-btn:hover { background: #333; }
+.copy-status { font-size: 12px; color: #888; min-height: 1em; }
+.install-note { margin-top: 16px; font-size: 13px; color: #999; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.install-note a { color: #aaa; }
+.agent-quick-path { 
+  margin: 16px 0; 
+  padding: 14px; 
+  border: 1px solid #333; 
+  border-radius: 0; 
+  background: #222; 
+}
+.agent-quick-path h2 { margin: 0 0 8px; font-size: 18px; }
+.agent-quick-path ol { margin: 8px 0 8px 20px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #ccc; }
+.agent-quick-path p { margin: 8px 0 0; }
+
+/* Tweak controls */
+.controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+  background: #222;
+  border: 1px solid #444;
+  padding: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: #ccc;
+}
+.controls label { display: block; margin: 6px 0; }
+.controls input[type="range"] { width: 140px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="state">● LIVE</div>
+    <h1>test-content.txt</h1>
+    <p>$0.01 to unlock this file</p>
+
+    <div class="kv"><strong>Price:</strong> 0.01 USDC</div>
+    <div class="kv"><strong>Network:</strong> Base Sepolia (eip155:84532)</div>
+    <div class="kv"><strong>Seller:</strong> 0xAb46Ab69fE5820468942880A5fF4bB3284BB328e</div>
+
+    <div class="agent-quick-path">
+      <h2>Agent Quick Path</h2>
+      <ol>
+        <li>Send this link to your agent</li>
+        <li>Agent uses <code>nustuf buy &lt;url&gt; --locus</code></li>
+        <li>Payment via Locus wallet, content downloaded</li>
+      </ol>
+      <p>Don't have nustuf? <code>npm install -g nustuf</code></p>
+    </div>
+
+    <h2>CLI</h2>
+    <div class="prompt-head">
+      <p>Copy this command:</p>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('nustuf buy https://example.trycloudflare.com/ --locus')">Copy</button>
+    </div>
+    <pre>nustuf buy https://example.trycloudflare.com/ --locus</pre>
+
+    <div class="install-note">
+      Want to know more about <code>nustuf</code>? 
+      <a href="https://github.com/eucalyptus-viminalis/nustuf">github.com/eucalyptus-viminalis/nustuf</a>
+    </div>
+  </main>
+
+  <!-- Live tweak controls -->
+  <div class="controls">
+    <strong>Background tweaks</strong>
+    <label>Opacity: <span id="opVal">0.03</span>
+      <input type="range" id="opacity" min="0.01" max="0.5" step="0.01" value="0.03">
+    </label>
+    <label>Font size: <span id="szVal">240</span>px
+      <input type="range" id="fontSize" min="48" max="600" step="12" value="240">
+    </label>
+    <label>Rotation: <span id="rotVal">-25</span>°
+      <input type="range" id="rotation" min="-60" max="0" step="1" value="-25">
+    </label>
+    <label>Word spacing: <span id="wsVal">80</span>px
+      <input type="range" id="wordSpacing" min="0" max="200" step="10" value="80">
+    </label>
+    <label>Line height: <span id="lhVal">1.4</span>
+      <input type="range" id="lineHeight" min="0.8" max="3" step="0.1" value="1.4">
+    </label>
+    <label>Letter spacing: <span id="lsVal">20</span>px
+      <input type="range" id="letterSpacing" min="-10" max="100" step="2" value="20">
+    </label>
+  </div>
+
+  <script>
+    const before = document.styleSheets[0].cssRules[3]; // body::before rule
+    const el = (id) => document.getElementById(id);
+
+    function updateBg() {
+      const style = document.body.style;
+      const op = el('opacity').value;
+      const sz = el('fontSize').value;
+      const rot = el('rotation').value;
+      const ws = el('wordSpacing').value;
+      const lh = el('lineHeight').value;
+      const ls = el('letterSpacing').value;
+
+      el('opVal').textContent = op;
+      el('szVal').textContent = sz;
+      el('rotVal').textContent = rot;
+      el('wsVal').textContent = ws;
+      el('lhVal').textContent = lh;
+      el('lsVal').textContent = ls;
+
+      // Update the ::before pseudo-element via CSS custom properties
+      document.documentElement.style.setProperty('--bg-opacity', op);
+      document.documentElement.style.setProperty('--bg-font-size', sz + 'px');
+      document.documentElement.style.setProperty('--bg-rotation', rot + 'deg');
+      document.documentElement.style.setProperty('--bg-word-spacing', ws + 'px');
+      document.documentElement.style.setProperty('--bg-line-height', lh);
+      document.documentElement.style.setProperty('--bg-letter-spacing', ls + 'px');
+    }
+
+    // Override ::before with CSS custom properties
+    const sheet = document.createElement('style');
+    sheet.textContent = `
+      body::before {
+        opacity: var(--bg-opacity, 0.03) !important;
+        font-size: var(--bg-font-size, 240px) !important;
+        transform: rotate(var(--bg-rotation, -25deg)) !important;
+        word-spacing: var(--bg-word-spacing, 80px) !important;
+        line-height: var(--bg-line-height, 1.4) !important;
+        letter-spacing: var(--bg-letter-spacing, 20px) !important;
+      }
+    `;
+    document.head.appendChild(sheet);
+
+    ['opacity','fontSize','rotation','wordSpacing','lineHeight','letterSpacing'].forEach(id => {
+      el(id).addEventListener('input', updateBg);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{
+  "name": "nustuf",
+  "version": "0.1.0",
+  "description": "Agent-native content marketplace — discover, buy, and publish with Locus payments",
+  "type": "module",
+  "main": "src/index.js",
+  "files": [
+    "src/",
+    "scripts/",
+    "skills/",
+    "contracts/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "nustuf": "scripts/cli.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "cli": "node scripts/cli.js"
+  },
+  "keywords": [
+    "x402",
+    "locus",
+    "agents",
+    "micropayments",
+    "content-marketplace",
+    "synthesis-hackathon"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eucalyptus-viminalis/nustuf.git"
+  },
+  "homepage": "https://github.com/eucalyptus-viminalis/nustuf#readme",
+  "bugs": {
+    "url": "https://github.com/eucalyptus-viminalis/nustuf/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@coinbase/cdp-sdk": "^1.45.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@x402/core": "^2.3.0",
+    "@x402/evm": "^2.3.0",
+    "@x402/express": "^2.3.0",
+    "dotenv": "^17.2.4",
+    "enquirer": "^2.4.1",
+    "express": "^5.2.1",
+    "viem": "^2.45.2"
+  },
+  "packageManager": "npm@10.9.0"
+}

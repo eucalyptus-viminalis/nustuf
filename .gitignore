@@ -1,0 +1,15 @@
+node_modules
+.env
+.env.*
+.DS_Store
+.env.local*
+.npm-cache/
+multi.json
+.locus.json
+HACKATHON.md
+*.key
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+.git-old/
+assets/fonts/*/sources/
