@@ -106,13 +106,14 @@ Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too 
 4. Block sensitive paths (~/.ssh, ~/.aws, etc.)
 5. Warn user that on-chain announcement is permanent
 
-## Required inputs
+## Required inputs (ALWAYS ask for these — never assume defaults)
 
-1. File path
-2. Price in USDC
-3. Sale window (e.g., 1h, 24h, 7d)
-4. Payout address (`--pay-to`)
-5. Title and description (for on-chain metadata)
+1. **File path** — what content to publish
+2. **Price in USDC** — how much to charge
+3. **Sale window** — how long to keep it live (e.g., 1h, 24h, 7d). DO NOT default silently.
+4. **Payout address** — where USDC goes (`--pay-to`)
+5. **Title and description** — for on-chain metadata and promo page
+6. **Network** — Base mainnet (`eip155:8453`) or Base Sepolia testnet (`eip155:84532`)
 
 ## On-chain announcement
 
