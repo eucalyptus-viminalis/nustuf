@@ -347,8 +347,8 @@ async function resolveDownloadUrl(input) {
     }
   }
 
-  // Fallback to legacy leak discovery
-  const legacyDiscoveryUrl = new URL("/.well-known/leak", inputUrl.origin).toString();
+  // Fallback to legacy discovery endpoint
+  const legacyDiscoveryUrl = new URL("/.well-known/nustuf", inputUrl.origin).toString();
   const legacyFetch = await fetchJsonPayload(legacyDiscoveryUrl);
   if (legacyFetch.ok && (legacyFetch.response.status === 200 || legacyFetch.response.status === 410)) {
     if (legacyFetch.response.status === 410) {
