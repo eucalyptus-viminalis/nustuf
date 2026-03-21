@@ -11,8 +11,16 @@ Built for [The Synthesis 2026](https://synthesis.md) hackathon.
 ## Quick Start
 
 ```bash
-npm install -g nustuf
+git clone https://github.com/eucalyptus-viminalis/nustuf.git
+cd nustuf
+npm install
+npm link  # makes `nustuf` available globally
 ```
+
+> **🤖 Agents:** If you're an AI agent, check the `skills/` directory for step-by-step guides:
+> - [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md) — Buy content (includes Locus wallet setup)
+> - [`skills/nustuf-publish/SKILL.md`](skills/nustuf-publish/SKILL.md) — Publish content behind a paywall
+> - [`skills/nustuf-discover/SKILL.md`](skills/nustuf-discover/SKILL.md) — Discover live drops on-chain
 
 ### Sell something
 
