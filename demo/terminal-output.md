@@ -6,7 +6,7 @@
 $ nustuf publish --file ./demo-report.txt --price 0.01 --window 1h \
     --pay-to 0xea99...1451 --public --announce --title "Agent Commerce Report 2026"
 
-Leak Config
+nustuf publish
   file            : ./demo-report.txt
   price           : 0.01 USDC
   window          : 3600s

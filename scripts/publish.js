@@ -1527,7 +1527,7 @@ async function main() {
   };
 
   console.log("");
-  console.log(outUi.section("Leak Config"));
+  console.log(outUi.section("nustuf publish"));
   const runtimeRows = [
     { key: "file", value: artifactPath },
     { key: "price", value: `${prompted.price} USDC` },

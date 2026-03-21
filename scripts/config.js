@@ -47,7 +47,7 @@ function logError(message) {
 }
 
 function usageAndExit(code = 0) {
-  console.log(outUi.heading("Leak Config CLI"));
+  console.log(outUi.heading("nustuf config"));
   console.log("");
   console.log(outUi.section("Usage"));
   console.log("  nustuf config");
@@ -189,7 +189,7 @@ function printShow() {
   }
 
   const redacted = redactConfig(loaded.config);
-  console.log(outUi.section("Leak Config"));
+  console.log(outUi.section("nustuf publish"));
   for (const line of outUi.formatRows([{ key: "path", value: loaded.path }])) {
     console.log(line);
   }

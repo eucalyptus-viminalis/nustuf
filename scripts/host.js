@@ -40,7 +40,7 @@ function logError(message) {
 
 function usageAndExit(code = 1, hint = "") {
   if (hint) logWarn(`Hint: ${hint}`);
-  console.log(outUi.heading("Leak Multi-Host Runner"));
+  console.log(outUi.heading("nustuf host"));
   console.log("");
   console.log(outUi.section("Usage"));
   console.log(
