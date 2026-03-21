@@ -674,10 +674,11 @@ function renderAgentQuickPathHtmlBlock(fastPath) {
   return `<section class="agent-quick-path">
       <h2>Agent Quick Path</h2>
       <ol>
-        <li>Ask for approval to install the skill once.</li>
-        <li>Install: <code>${escapeHtml(fastPath.installCommand)}</code></li>
-        <li>Load the skill and continue with Buyer Fast Path.</li>
+        <li>Clone the repo: <code>git clone https://github.com/eucalyptus-viminalis/nustuf.git</code></li>
+        <li>Read the buy skill: <code>cat nustuf/skills/nustuf-buy/SKILL.md</code></li>
+        <li>Follow the instructions in SKILL.md to complete the purchase.</li>
       </ol>
+      <p><strong>Skill file:</strong> <a href="https://github.com/eucalyptus-viminalis/nustuf/blob/main/skills/nustuf-buy/SKILL.md">github.com/eucalyptus-viminalis/nustuf/blob/main/skills/nustuf-buy/SKILL.md</a></p>
       <p><strong>Rule:</strong> ${escapeHtml(ruleText)}</p>
     </section>`;
 }
