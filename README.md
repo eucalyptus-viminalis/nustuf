@@ -17,7 +17,7 @@ npm install
 npm link  # makes `nustuf` available globally
 ```
 
-> **🤖 Agents:** If you're an AI agent, check the `skills/` directory for step-by-step guides:
+> **🤖 Agents:** Check the `skills/` directory for step-by-step guides:
 > - [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md) — Buy content (includes Locus wallet setup)
 > - [`skills/nustuf-publish/SKILL.md`](skills/nustuf-publish/SKILL.md) — Publish content behind a paywall
 > - [`skills/nustuf-discover/SKILL.md`](skills/nustuf-discover/SKILL.md) — Discover live drops on-chain
@@ -28,7 +28,7 @@ npm link  # makes `nustuf` available globally
 nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public
 ```
 
-That's it. This will:
+This will:
 - Spin up a server with x402 payment gating
 - Create a public URL via Cloudflare Tunnel
 - Give you a shareable promo link
@@ -55,6 +55,14 @@ nustuf discover --active
 
 Queries the on-chain registry for available content.
 
+### Browse the feed
+
+```bash
+nustuf feed-ui
+```
+
+Opens a local web UI showing live announcements from the on-chain registry. No wallet or config needed — just browse what's available.
+
 ## Setup
 
 ### Locus Wallet (for buying)
@@ -70,6 +78,8 @@ Or create a `.locus.json` file:
 ```json
 { "apiKey": "your_key_here" }
 ```
+
+Don't have a Locus wallet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md) for setup instructions.
 
 ### Seller Config
 
@@ -93,7 +103,7 @@ Creator                          Blockchain                        Buyer Agent
   ├─ nustuf publish ────────────────►│ announce (on-chain registry)     │
   │  (server + cloudflare tunnel)    │                                  │
   │                                  │◄──────────── nustuf discover ────┤
-  │                                  │  (query active releases)        │
+  │                                  │  (query active releases)         │
   │◄─────────────────────────────────┼──────────── nustuf buy ──────────┤
   │  402 Payment Required            │                                  │
   │◄─────────────────────────────────┼──── USDC payment (via Locus) ────┤
@@ -104,21 +114,19 @@ Creator                          Blockchain                        Buyer Agent
 2. **Discover**: Buyer agent queries the on-chain registry for available content
 3. **Buy**: Buyer agent hits the URL, gets a 402 (Payment Required), pays via Locus wallet, downloads the content
 
-All payments are in USDC on Base. The buyer doesn't need to know anything about the content format — they just pay and download.
+All payments are in USDC on Base.
 
 ## Agent Skills
 
-nustuf ships with 3 [OpenClaw](https://openclaw.ai) skills:
+nustuf ships with 3 agent skills in the `skills/` directory. Each has a `SKILL.md` with full instructions an agent can follow autonomously:
 
-- **nustuf-publish** — Guides an agent through publishing content
-- **nustuf-buy** — Guides an agent through purchasing content
-- **nustuf-discover** — Guides an agent through discovering available drops
+| Skill | Description |
+|-------|-------------|
+| [`nustuf-publish`](skills/nustuf-publish/SKILL.md) | Publish content behind a USDC paywall |
+| [`nustuf-buy`](skills/nustuf-buy/SKILL.md) | Purchase content using a Locus wallet |
+| [`nustuf-discover`](skills/nustuf-discover/SKILL.md) | Discover live drops from the on-chain registry |
 
-Install via the skills directory or point your agent at a running nustuf server's `/.well-known/skills/index.json`.
-
-## Live Feed
-
-Every nustuf server serves a live feed at `/feed` — a minimal web UI showing new announcements as they hit the on-chain registry in real-time.
+Running nustuf servers also expose skill metadata at `/.well-known/skills/index.json` for automated agent discovery.
 
 ## CLI Reference
 
@@ -126,6 +134,7 @@ Every nustuf server serves a live feed at `/feed` — a minimal web UI showing n
 nustuf publish    Publish content behind payment gate
 nustuf buy        Purchase content
 nustuf discover   Find live releases
+nustuf feed-ui    Browse live releases in the browser
 nustuf announce   Register a drop on-chain
 nustuf host       Multi-host server
 nustuf config     Manage configuration
@@ -135,11 +144,10 @@ Run `nustuf --help` or `nustuf <command> --help` for details.
 
 ## Stack
 
-- **x402** — HTTP 402 payment protocol
-- **Locus** — Agent wallet for autonomous payments
-- **Base** — L2 for USDC payments + on-chain registry
-- **Cloudflare Tunnel** — Zero-config public URLs
-- **OpenClaw** — Agent skill framework
+- **[x402](https://www.x402.org/)** — HTTP 402 payment protocol
+- **[Locus](https://paywithlocus.com)** — Agent wallet for autonomous USDC payments
+- **[Base](https://base.org)** — L2 for USDC payments + on-chain registry
+- **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)** — Zero-config public URLs
 
 ## Smart Contract
 
