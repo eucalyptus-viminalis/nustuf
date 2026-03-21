@@ -8,8 +8,8 @@
     "src/",
     "scripts/",
     "skills/",
-    "contracts/",
-    "examples/",
+    "contracts/src/",
+    "public/",
     "README.md",
     "LICENSE"
   ],

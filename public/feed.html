@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nustuf — live feed</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 2rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    color: #fff;
+  }
+  .subtitle {
+    color: #666;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+  }
+  .status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid #333;
+    font-size: 0.75rem;
+    margin-bottom: 2rem;
+    color: #888;
+  }
+  .status.live { border-color: #4a4; color: #4a4; }
+  .status.error { border-color: #a44; color: #a44; }
+  
+  #feed { display: flex; flex-direction: column; gap: 1rem; }
+  
+  .release {
+    border: 1px solid #222;
+    padding: 1.5rem;
+    transition: border-color 0.3s;
+  }
+  .release:hover { border-color: #444; }
+  .release.new { border-color: #4a4; animation: fadeIn 0.5s ease; }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .release-title {
+    font-size: 1rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    color: #fff;
+  }
+  .release-desc { color: #999; margin-bottom: 0.75rem; font-size: 0.9rem; }
+  .release-meta {
+    display: flex; gap: 2rem; flex-wrap: wrap;
+    font-size: 0.8rem; color: #666;
+  }
+  .release-meta span { display: flex; align-items: center; gap: 0.3rem; }
+  .price { color: #4a4; font-weight: bold; }
+  .release-url {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+  }
+  .release-url a {
+    color: #888;
+    text-decoration: none;
+    border-bottom: 1px solid #333;
+  }
+  .release-url a:hover { color: #fff; border-color: #666; }
+  
+  .release-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .tag {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 0.15rem 0.5rem; border: 1px solid;
+  }
+  .live-tag { border-color: #4a4; color: #4a4; }
+  .expired-tag { border-color: #555; color: #555; }
+  .release.expired { opacity: 0.5; }
+  
+  .empty {
+    color: #444;
+    text-align: center;
+    padding: 4rem 0;
+    font-size: 1.1rem;
+  }
+  
+  .block-num { color: #555; font-size: 0.75rem; }
+</style>
+</head>
+<body>
+  <h1>nustuf</h1>
+  <p class="subtitle">live announcements from the on-chain registry</p>
+  <div id="status" class="status">connecting...</div>
+  <div id="feed">
+    <div class="empty" id="empty-msg">waiting for announcements...</div>
+  </div>
+
+<script type="module">
+  const REGISTRY = '0x134597d9Cc6270571C2b8245c4235f7838C0d65D';
+  const RPC = 'https://sepolia.base.org';
+  const SCAN = 'https://sepolia.basescan.org';
+  
+  // ReleaseAnnounced event signature
+  const EVENT_SIG = '0x' + await sha256('ReleaseAnnounced(bytes32,address,string,uint256,uint256)');
+  
+  async function sha256(text) {
+    const buf = new TextEncoder().encode(text);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  
+  // Use keccak256 instead — EVM uses keccak for event topics
+  // We'll just hardcode the topic hash since we can't easily keccak in browser
+  // keccak256("ReleaseAnnounced(bytes32,address,string,uint256,uint256)")
+  // Let's compute it via eth_call or just use the ABI approach
+  
+  const statusEl = document.getElementById('status');
+  const feedEl = document.getElementById('feed');
+  const emptyEl = document.getElementById('empty-msg');
+  
+  // ABI for reading
+  const ABI = {
+    getActiveReleases: 'function getActiveReleases(uint256) view returns (bytes32[])',
+    getRelease: 'function getRelease(bytes32) view returns (tuple(address creator, string url, uint256 priceUsdc, bytes32 contentHash, uint256 expiresAt, string title, string description, bool active))',
+    allReleases: 'function allReleases(uint256) view returns (bytes32)',
+  };
+  
+  // Minimal ABI encoding helpers
+  function encodeFunctionCall(sig, ...args) {
+    // keccak256 of function signature (first 4 bytes)
+    // We'll use a simple approach: call eth_call with data
+    return null; // We'll use a different approach
+  }
+  
+  // Use eth_call with raw ABI encoding
+  async function rpcCall(method, params) {
+    const res = await fetch(RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    return json.result;
+  }
+  
+  // Get logs for ReleaseAnnounced events
+  async function getAnnouncementLogs(fromBlock = null) {
+    if (!fromBlock) {
+      const latest = await rpcCall('eth_blockNumber', []);
+      fromBlock = '0x' + Math.max(0, Number(BigInt(latest)) - 9000).toString(16);
+    }
+    const logs = await rpcCall('eth_getLogs', [{
+      address: REGISTRY,
+      fromBlock,
+      toBlock: 'latest',
+    }]);
+    return logs;
+  }
+  
+  // Decode uint256 from hex
+  function decodeUint(hex) {
+    return BigInt('0x' + hex);
+  }
+  
+  // Decode address from 32-byte padded hex
+  function decodeAddress(hex) {
+    return '0x' + hex.slice(24);
+  }
+  
+  // Decode string from ABI-encoded data at offset
+  function decodeString(data, offsetBytes) {
+    const offset = Number(decodeUint(data.slice(offsetBytes * 2, offsetBytes * 2 + 64)));
+    const len = Number(decodeUint(data.slice(offset * 2, offset * 2 + 64)));
+    const hexStr = data.slice(offset * 2 + 64, offset * 2 + 64 + len * 2);
+    return new TextDecoder().decode(new Uint8Array(hexStr.match(/.{2}/g).map(b => parseInt(b, 16))));
+  }
+  
+  function formatUsdc(raw) {
+    const n = Number(raw) / 1e6;
+    return '$' + n.toFixed(2);
+  }
+  
+  function formatTime(ts) {
+    return new Date(Number(ts) * 1000).toLocaleString();
+  }
+  
+  function timeAgo(ts) {
+    const diff = Date.now() / 1000 - Number(ts);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+  
+  const seenIds = new Set();
+  
+  // Fetch release details from contract (title, description)
+  async function getRelease(releaseId) {
+    // getRelease(bytes32) selector: 0x7e3ba677 (keccak256 of "getRelease(bytes32)")
+    // We need the actual selector. Let's compute: first 4 bytes of keccak256("getRelease(bytes32)")
+    // Hardcode: function selector for getRelease(bytes32)
+    const selector = '0xb2510225'; // we'll try a few
+    // Actually let's just use eth_call with raw data
+    // selector = keccak256("getRelease(bytes32)")[0:8]
+    // We can't easily keccak in browser, so let's try calling with viem-style encoding
+    // For now, skip the on-chain call and just show what we have from the event
+    return null;
+  }
+  
+  function renderRelease(log, isNew = false) {
+    const releaseId = log.topics[1];
+    if (seenIds.has(releaseId)) return;
+    seenIds.add(releaseId);
+    
+    const creator = decodeAddress(log.topics[2]);
+    const data = log.data.slice(2);
+    
+    const urlOffset = Number(decodeUint(data.slice(0, 64)));
+    const priceUsdc = decodeUint(data.slice(64, 128));
+    const expiresAt = decodeUint(data.slice(128, 192));
+    
+    const urlLenHex = data.slice(urlOffset * 2, urlOffset * 2 + 64);
+    const urlLen = Number(decodeUint(urlLenHex));
+    const urlHex = data.slice(urlOffset * 2 + 64, urlOffset * 2 + 64 + urlLen * 2);
+    const url = new TextDecoder().decode(new Uint8Array(urlHex.match(/.{2}/g).map(b => parseInt(b, 16))));
+    
+    const expired = Number(expiresAt) * 1000 < Date.now();
+    
+    emptyEl.style.display = 'none';
+    
+    const blockNum = Number(BigInt(log.blockNumber));
+    const txHash = log.transactionHash;
+    const shortId = releaseId.slice(0, 10) + '…' + releaseId.slice(-6);
+    
+    const el = document.createElement('div');
+    el.className = 'release' + (isNew ? ' new' : '') + (expired ? ' expired' : '');
+    el.innerHTML = `
+      <div class="release-header">
+        <span class="release-title">${shortId}</span>
+        ${expired ? '<span class="tag expired-tag">expired</span>' : '<span class="tag live-tag">live</span>'}
+      </div>
+      <div class="release-meta">
+        <span class="price">${formatUsdc(priceUsdc)}</span>
+        <span>expires ${formatTime(expiresAt)}</span>
+        <span>by ${creator.slice(0, 6)}…${creator.slice(-4)}</span>
+        <span class="block-num">block ${blockNum}</span>
+      </div>
+      <div class="release-url">
+        <a href="${url}" target="_blank">${url}</a>
+        ·
+        <a href="${SCAN}/tx/${txHash}" target="_blank">tx ↗</a>
+      </div>
+    `;
+    
+    feedEl.insertBefore(el, feedEl.firstChild);
+  }
+  
+  // Initial load
+  async function loadAll() {
+    try {
+      const logs = await getAnnouncementLogs();
+      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · base sepolia`;
+      statusEl.className = 'status live';
+      
+      // Render oldest first so newest end up on top
+      for (const log of logs) {
+        renderRelease(log, false);
+      }
+      
+      if (logs.length === 0) {
+        emptyEl.style.display = 'block';
+      }
+      
+      return logs.length > 0 ? logs[logs.length - 1].blockNumber : 'latest';
+    } catch (e) {
+      statusEl.textContent = 'error: ' + e.message;
+      statusEl.className = 'status error';
+      return 'latest';
+    }
+  }
+  
+  // Poll for new events
+  async function poll(fromBlock) {
+    try {
+      const nextBlock = '0x' + (Number(BigInt(fromBlock)) + 1).toString(16);
+      const logs = await getAnnouncementLogs(nextBlock);
+      
+      for (const log of logs) {
+        renderRelease(log, true);
+      }
+      
+      if (logs.length > 0) {
+        const total = seenIds.size;
+        statusEl.textContent = `connected · ${total} announcement${total !== 1 ? 's' : ''} · base sepolia`;
+        return logs[logs.length - 1].blockNumber;
+      }
+      return fromBlock;
+    } catch {
+      return fromBlock;
+    }
+  }
+  
+  // Start
+  let lastBlock = await loadAll();
+  setInterval(async () => {
+    lastBlock = await poll(lastBlock);
+  }, 5000);
+</script>
+</body>
+</html>

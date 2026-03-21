@@ -9,7 +9,8 @@ import { Resvg } from "@resvg/resvg-js";
 import { x402ResourceServer } from "@x402/core/server";
 import { x402HTTPResourceServer, HTTPFacilitatorClient } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
-import { isAddress } from "viem";
+import { isAddress, createPublicClient, http, parseAbi } from "viem";
+import { base, baseSepolia } from "viem/chains";
 import { resolveSupportedChain } from "./chain_meta.js";
 import {
   ACCESS_MODE_VALUES,
@@ -1084,6 +1085,11 @@ app.set("trust proxy", true);
 // Serve static fonts
 app.use("/fonts", express.static(path.join(__dirname, "..", "public", "fonts")));
 
+// Serve feed page
+app.get("/feed", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "feed.html"));
+});
+
 // x402 core server + HTTP wrapper
 let httpServer = null;
 if (REQUIRES_PAYMENT) {
@@ -1515,6 +1521,98 @@ app.get("/download", async (req, res) => {
     filename: path.basename(p),
     mime_type: MIME_TYPE,
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Locus Direct Payment Verification (workaround for Locus x402/call bug)
+// Accepts a USDC transfer tx hash and verifies on-chain that the correct
+// amount was sent to the seller address.
+// ─────────────────────────────────────────────────────────────────────────────
+const USDC_TRANSFER_EVENT = parseAbi([
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+]);
+
+// Known USDC contract addresses
+const USDC_ADDRESSES = {
+  "eip155:8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "eip155:84532": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+};
+
+app.post("/download/verify-tx", express.json(), async (req, res) => {
+  if (saleEnded()) {
+    return res.status(410).json({ error: "release ended" });
+  }
+  if (!REQUIRES_PAYMENT) {
+    return res.status(400).json({ error: "payment not required" });
+  }
+
+  const { txHash } = req.body;
+  if (!txHash || typeof txHash !== "string") {
+    return res.status(400).json({ error: "txHash required" });
+  }
+
+  const chain = CHAIN_ID === "eip155:8453" ? base : baseSepolia;
+  const usdcAddress = USDC_ADDRESSES[CHAIN_ID];
+  if (!usdcAddress) {
+    return res.status(500).json({ error: `unsupported chain for tx verification: ${CHAIN_ID}` });
+  }
+
+  const requiredAmount = BigInt(Math.round(PRICE_USD * 1e6));
+
+  try {
+    const client = createPublicClient({ chain, transport: http() });
+    const receipt = await client.getTransactionReceipt({ hash: txHash });
+
+    if (receipt.status !== "success") {
+      return res.status(402).json({ error: "transaction failed on-chain" });
+    }
+
+    // Find USDC Transfer event to seller
+    const transferLog = receipt.logs.find((log) => {
+      if (log.address.toLowerCase() !== usdcAddress.toLowerCase()) return false;
+      if (!log.topics || log.topics.length < 3) return false;
+      // topics[0] = Transfer event sig, topics[2] = to address (padded)
+      const to = "0x" + log.topics[2].slice(26);
+      return to.toLowerCase() === SELLER_PAY_TO.toLowerCase();
+    });
+
+    if (!transferLog) {
+      return res.status(402).json({ error: "no USDC transfer to seller found in tx" });
+    }
+
+    // Check amount (data field contains the uint256 value)
+    const transferredAmount = BigInt(transferLog.data);
+    if (transferredAmount < requiredAmount) {
+      return res.status(402).json({
+        error: "insufficient payment",
+        required: requiredAmount.toString(),
+        received: transferredAmount.toString(),
+      });
+    }
+
+    // Check tx is recent (within window)
+    const block = await client.getBlock({ blockNumber: receipt.blockNumber });
+    const txAge = Math.floor(Date.now() / 1000) - Number(block.timestamp);
+    if (txAge > WINDOW_SECONDS) {
+      return res.status(402).json({ error: "transaction too old", age_seconds: txAge });
+    }
+
+    // Payment verified — mint access token
+    const t = mintGrant();
+    const p = absArtifactPath();
+
+    return res.json({
+      ok: true,
+      token: t,
+      expires_in: WINDOW_SECONDS,
+      download_url: `/download?token=${t}`,
+      filename: path.basename(p),
+      mime_type: MIME_TYPE,
+    });
+  } catch (err) {
+    console.error(`[verify-tx] ${err?.message || String(err)}`);
+    return res.status(500).json({ error: "tx verification failed", detail: err?.message });
+  }
 });
 
 const server = app.listen(PORT, () => {

@@ -530,7 +530,8 @@ async function main() {
     // Payment required
     
     if (useLocus) {
-      // ─── Locus Payment Flow ───
+      // ─── Locus Direct Payment Flow ───
+      // Workaround: Locus x402/call has a bug, so we use pay/send + verify-tx
       const apiKey = loadLocusApiKey();
       if (!apiKey) {
         throw new Error(
@@ -538,30 +539,114 @@ async function main() {
         );
       }
       
-      // Check balance first
+      // Check balance
       const balance = await checkLocusBalance(apiKey);
-      console.log(outUi.statusLine("info", `Locus wallet balance: ${balance.balance} USDC`));
+      console.log(outUi.statusLine("info", `Locus wallet balance: ${balance.usdc_balance} USDC`));
       
-      // Pay via Locus x402 endpoint
-      const result = await payViaLocus(apiKey, downloadUrl, "GET");
-      printLocusReceipt(result);
+      // Parse payment requirements from the 402 header
+      const paymentRequiredHeader = getHeaderCaseInsensitive(r1.headers, "PAYMENT-REQUIRED");
+      if (!paymentRequiredHeader) throw new Error("Missing PAYMENT-REQUIRED header");
+      const paymentRequired = decodePaymentRequiredHeader(paymentRequiredHeader);
       
-      // The x402/call endpoint should return the content directly
-      // For now, we need to fetch again after payment is confirmed
-      // TODO: Locus may return content directly in result.data
+      const accept = paymentRequired.accepts?.[0];
+      if (!accept) throw new Error("No payment scheme in PAYMENT-REQUIRED header");
       
-      // Re-fetch with the payment complete
-      const r2 = await fetch(downloadUrl, {
-        method: "GET",
-        headers: initialHeaders,
+      const amountUsdc = Number(accept.maxAmountRequired || accept.amount) / 1e6;
+      const payTo = accept.payTo;
+      
+      console.log(outUi.statusLine("info", `Payment: ${amountUsdc} USDC to ${payTo}`));
+      
+      // Send USDC via Locus pay/send
+      console.log(outUi.statusLine("info", "Sending payment via Locus wallet..."));
+      const sendResponse = await fetch(`${LOCUS_API_BASE}/pay/send`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to_address: payTo,
+          amount: amountUsdc,
+          memo: `nustuf purchase: ${downloadUrl}`,
+        }),
       });
       
-      if (!r2.ok) {
-        const text = await responseBodyText(r2);
-        throw new Error(`Download failed after Locus payment: ${r2.status}: ${text}`);
+      const sendResult = await sendResponse.json();
+      if (!sendResponse.ok || !sendResult.success) {
+        throw new Error(`Locus payment failed: ${sendResult.error || sendResult.message || sendResponse.status}`);
       }
       
-      await finalizeDownloadResponse(r2, { args, downloadUrl });
+      const transactionId = sendResult.data?.transaction_id;
+      if (!transactionId) {
+        throw new Error("Locus payment succeeded but no transaction_id returned");
+      }
+      
+      console.log(outUi.statusLine("ok", `Payment queued! id: ${transactionId}`));
+      console.log(outUi.statusLine("info", "Waiting for on-chain confirmation..."));
+      
+      // Poll for tx_hash
+      let txHash = null;
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const statusRes = await fetch(`${LOCUS_API_BASE}/pay/transactions/${transactionId}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        const statusData = await statusRes.json();
+        const tx = statusData.data?.transaction;
+        if (tx?.tx_hash) {
+          txHash = tx.tx_hash;
+          console.log(outUi.statusLine("ok", `Confirmed! tx: ${txHash}`));
+          break;
+        }
+        if (tx?.status === "FAILED") {
+          throw new Error("Locus payment failed on-chain");
+        }
+        process.stdout.write(".");
+      }
+      
+      if (!txHash) {
+        throw new Error("Timed out waiting for Locus payment confirmation");
+      }
+      
+      // Verify tx with the server
+      const verifyUrl = new URL("/download/verify-tx", new URL(downloadUrl).origin).toString();
+      const verifyResponse = await fetch(verifyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash }),
+      });
+      
+      const verifyResult = await verifyResponse.json();
+      if (!verifyResponse.ok || !verifyResult.ok) {
+        throw new Error(`Payment verification failed: ${verifyResult.error || verifyResponse.status}`);
+      }
+      
+      console.log(outUi.statusLine("ok", "Payment verified by server!"));
+      
+      // Download with token
+      const tokenUrl = new URL(downloadUrl);
+      tokenUrl.searchParams.set("token", verifyResult.token);
+      
+      const r2 = await fetch(tokenUrl.toString(), { method: "GET" });
+      if (!r2.ok) {
+        const text = await responseBodyText(r2);
+        throw new Error(`Download failed: ${r2.status}: ${text}`);
+      }
+      
+      // Print receipt
+      console.log("");
+      console.log(outUi.section("Locus Payment Receipt"));
+      const rows = [
+        { key: "amount", value: `${amountUsdc} USDC` },
+        { key: "to", value: payTo },
+        { key: "tx_hash", value: txHash },
+        { key: "explorer", value: `https://basescan.org/tx/${txHash}` },
+      ];
+      for (const line of outUi.formatRows(rows)) {
+        console.log(line);
+      }
+      
+      await saveBinaryResponse(r2, args, verifyResult.filename || null);
       return;
     }
     

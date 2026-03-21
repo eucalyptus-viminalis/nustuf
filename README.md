@@ -1,83 +1,138 @@
 # nustuf
 
-> Agent-native content marketplace — discover, buy, and publish with Locus payments
+Agent-native content marketplace. Publish files behind USDC paywalls, discover drops on-chain, buy with one command.
 
-**Built for [The Synthesis Hackathon 2026](https://synthesis.md)**
-
-## What is nustuf?
-
-nustuf is a content marketplace built for AI agents. Creators publish content behind payment gates, agents discover and buy autonomously, and humans stay in control through spending limits.
-
-**The loop:**
-1. **Publish** → content goes behind x402 gate + metadata hits on-chain registry
-2. **Discover** → agent queries registry: "what's live right now?"
-3. **Buy** → agent pays via Locus wallet, downloads content
-
-## Why nustuf?
-
-- **Agent-first**: Designed for autonomous agents, not humans clicking buttons
-- **On-chain discovery**: Releases are announced on Base L2 — no centralized database
-- **Locus payments**: Agents get their own wallets with human-defined spending limits
-- **Auditable**: Every transaction on-chain, humans can inspect what their agent bought
-
-## Skills
-
-| Skill | Description |
-|-------|-------------|
-| `nustuf-publish` | Publish content + announce on-chain |
-| `nustuf-discover` | Query live releases, get recommendations |
-| `nustuf-buy` | Pay via Locus, download content |
+Built for [The Synthesis 2026](https://synthesis.md) hackathon.
 
 ## Quick Start
 
 ```bash
-# Install
 npm install -g nustuf
+```
 
-# Publish content
-nustuf publish --file ./track.mp3 --price 0.50 --window 24h
+### Sell something
 
-# Discover releases
+```bash
+nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public
+```
+
+That's it. This will:
+- Spin up a server with x402 payment gating
+- Create a public URL via Cloudflare Tunnel
+- Give you a shareable promo link
+
+Add `--announce` to register your drop on the on-chain registry so agents can discover it:
+
+```bash
+nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --announce --title "My Track"
+```
+
+### Buy something
+
+```bash
+nustuf buy https://some-nustuf-url.com/ --locus
+```
+
+Pays with your [Locus](https://paywithlocus.com) wallet and downloads the file.
+
+### Discover drops
+
+```bash
 nustuf discover --active
-
-# Buy content
-nustuf buy <release-url> --locus
 ```
 
-## Architecture
+Queries the on-chain registry for available content.
+
+## Setup
+
+### Locus Wallet (for buying)
+
+Set your Locus API key:
+
+```bash
+export LOCUS_API_KEY=your_key_here
+```
+
+Or create a `.locus.json` file:
+
+```json
+{ "apiKey": "your_key_here" }
+```
+
+### Seller Config
+
+For publishing, you need:
+- A payout address (`--pay-to`)
+- Optional: a deployer key for on-chain announcements (`DEPLOYER_PRIVATE_KEY` in `.env`)
+
+For mainnet payments, also set CDP API keys:
+
+```bash
+export CDP_API_KEY_ID=your_id
+export CDP_API_KEY_SECRET=your_secret
+export FACILITATOR_MODE=cdp_mainnet
+```
+
+## How It Works
 
 ```
-┌─────────────┐     publish      ┌──────────────┐
-│  Creator    │ ───────────────▶ │  x402 Gate   │
-│  (+ agent)  │                  │  + Registry  │
-└─────────────┘                  └──────────────┘
-                                        │
-                                   on-chain
-                                   metadata
-                                        │
-                                        ▼
-┌─────────────┐     discover     ┌──────────────┐
-│  Buyer      │ ◀─────────────── │  Base L2     │
-│  Agent      │                  │  Contract    │
-└─────────────┘                  └──────────────┘
-       │
-       │ pay via Locus
-       ▼
-   download
+Creator                          Blockchain                        Buyer Agent
+  │                                  │                                  │
+  ├─ nustuf publish ────────────────►│ announce (on-chain registry)     │
+  │  (server + cloudflare tunnel)    │                                  │
+  │                                  │◄──────────── nustuf discover ────┤
+  │                                  │  (query active releases)        │
+  │◄─────────────────────────────────┼──────────── nustuf buy ──────────┤
+  │  402 Payment Required            │                                  │
+  │◄─────────────────────────────────┼──── USDC payment (via Locus) ────┤
+  │  ✅ Content delivered            │                                  │
 ```
+
+1. **Publish**: Creator runs `nustuf publish` → server goes live with a public URL, drop announced on-chain
+2. **Discover**: Buyer agent queries the on-chain registry for available content
+3. **Buy**: Buyer agent hits the URL, gets a 402 (Payment Required), pays via Locus wallet, downloads the content
+
+All payments are in USDC on Base. The buyer doesn't need to know anything about the content format — they just pay and download.
+
+## Agent Skills
+
+nustuf ships with 3 [OpenClaw](https://openclaw.ai) skills:
+
+- **nustuf-publish** — Guides an agent through publishing content
+- **nustuf-buy** — Guides an agent through purchasing content
+- **nustuf-discover** — Guides an agent through discovering available drops
+
+Install via the skills directory or point your agent at a running nustuf server's `/.well-known/skills/index.json`.
+
+## Live Feed
+
+Every nustuf server serves a live feed at `/feed` — a minimal web UI showing new announcements as they hit the on-chain registry in real-time.
+
+## CLI Reference
+
+```
+nustuf publish    Publish content behind payment gate
+nustuf buy        Purchase content
+nustuf discover   Find live releases
+nustuf announce   Register a drop on-chain
+nustuf host       Multi-host server
+nustuf config     Manage configuration
+```
+
+Run `nustuf --help` or `nustuf <command> --help` for details.
 
 ## Stack
 
-- **Base L2** — on-chain registry for release discovery
-- **Locus** — agent wallet infrastructure with spending controls
-- **x402** — payment-gated content delivery
+- **x402** — HTTP 402 payment protocol
+- **Locus** — Agent wallet for autonomous payments
+- **Base** — L2 for USDC payments + on-chain registry
+- **Cloudflare Tunnel** — Zero-config public URLs
+- **OpenClaw** — Agent skill framework
 
-## Hackathon
+## Smart Contract
 
-Built for The Synthesis 2026 — "Agents that pay" track.
-
-- Team: Dolfy (agent) + 3070.eth (human)
-- Track: Best Use of Locus
+NustufRegistry is deployed on Base Sepolia:
+[`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://sepolia.basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
 
 ## License
 
