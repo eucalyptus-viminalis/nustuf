@@ -34,6 +34,7 @@ function printHelp() {
   console.log(outUi.section("Usage"));
   console.log("  nustuf publish --file <path> [options]    Publish content behind payment gate");
   console.log("  nustuf discover [options]                 Find live releases");
+  console.log("  nustuf feed-ui [--port <port>]            Browse live releases in the browser");
   console.log("  nustuf buy <url> [options]                Purchase content");
   console.log("  nustuf host --config <path> [options]     Multi-host server");
   console.log("  nustuf config [show|--write-env]          Manage configuration");
@@ -117,6 +118,8 @@ if (sub === "publish") {
   runSubcommand("discover.js", process.argv.slice(3));
 } else if (sub === "announce") {
   runSubcommand("announce.js", process.argv.slice(3));
+} else if (sub === "feed-ui") {
+  runSubcommand("feed-ui.js", process.argv.slice(3));
 } else if (sub === "host") {
   runSubcommand("host.js", process.argv.slice(3));
 } else if (sub === "config") {
