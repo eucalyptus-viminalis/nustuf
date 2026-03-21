@@ -87,7 +87,7 @@ nustuf publish \
 The server defaults to port 4021. If a previous instance didn't shut down cleanly, the new one will crash with `EADDRINUSE`. Before starting a new publish:
 
 ```bash
-# Kill any existing nustuf/leak processes
+# Kill any existing nustuf processes
 pkill -f "publish.js\|index.js" 2>/dev/null
 # Verify port is free
 kill -9 $(lsof -ti:4021) 2>/dev/null || true

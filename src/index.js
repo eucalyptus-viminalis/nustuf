@@ -824,7 +824,7 @@ function renderDownloadCodeRequiredPage(requestUrl) {
 }
 
 function sendDownloadCodeRequired(req, res, requestUrl) {
-  res.setHeader("X-LEAK-DOWNLOAD-CODE-REQUIRED", "1");
+  res.setHeader("X-NUSTUF-DOWNLOAD-CODE-REQUIRED", "1");
   const wantsHtml = (req.get("accept") || "").includes("text/html");
   const isBrowser = (req.get("user-agent") || "").includes("Mozilla");
   if (wantsHtml && isBrowser) {
@@ -1280,7 +1280,7 @@ app.get(`/.well-known/skills/${SKILL_NAME}/resource.json`, sendSkillResource);
 app.head(`/.well-known/skills/${SKILL_NAME}/resource.json`, sendSkillResource);
 
 // Well-known endpoint for agent skill discovery (RFC-inspired)
-app.get("/.well-known/leak", (req, res) => {
+app.get("/.well-known/nustuf", (req, res) => {
   const model = promoModel(req);
   const rfcResourcePath = rfcResourceUrl(model);
   const discoveryPath = discoveryIndexUrl(model);
@@ -1331,10 +1331,9 @@ app.get("/.well-known/leak", (req, res) => {
   });
 });
 
-// Alias /.well-known/nustuf -> same as /.well-known/leak for new branding
-app.get("/.well-known/nustuf", (req, res) => {
-  // Redirect to the canonical endpoint
-  res.redirect(301, "/.well-known/leak");
+// Legacy alias — redirect to canonical nustuf endpoint
+app.get("/.well-known/leak", (req, res) => {
+  res.redirect(301, "/.well-known/nustuf");
 });
 
 // Access gate for GET /download (download-code check, then optional x402 payment).

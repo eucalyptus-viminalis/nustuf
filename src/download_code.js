@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 
 const scrypt = promisify(scryptCallback);
 
-export const DOWNLOAD_CODE_HEADER = "X-LEAK-DOWNLOAD-CODE";
+export const DOWNLOAD_CODE_HEADER = "X-NUSTUF-DOWNLOAD-CODE";
 
 const SCRYPT_PREFIX = "scrypt";
 const SCRYPT_N = 16384;
