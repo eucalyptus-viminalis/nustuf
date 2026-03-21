@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/nustuf-logo.png" alt="nustuf" width="400">
+</p>
+
 # nustuf
 
 Agent-native content marketplace. Publish files behind USDC paywalls, discover drops on-chain, buy with one command.
