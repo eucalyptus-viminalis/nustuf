@@ -13,3 +13,4 @@ contracts/out/
 contracts/broadcast/
 .git-old/
 assets/fonts/*/sources/
+conversation-log-raw.txt
