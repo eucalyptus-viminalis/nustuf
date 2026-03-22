@@ -233,7 +233,7 @@
     return { creator, url, priceUsdc, contentHash, expiresAt, title, description, active };
   }
   
-  function renderRelease(log, isNew = false) {
+  async function renderRelease(log, isNew = false) {
     const releaseId = log.topics[1];
     if (seenIds.has(releaseId)) return;
     seenIds.add(releaseId);
@@ -302,7 +302,7 @@
       
       // Render oldest first so newest end up on top
       for (const log of logs) {
-        renderRelease(log, false);
+        await renderRelease(log, false);
       }
       
       if (logs.length === 0) {
@@ -324,7 +324,7 @@
       const logs = await getAnnouncementLogs(nextBlock);
       
       for (const log of logs) {
-        renderRelease(log, true);
+        await renderRelease(log, true);
       }
       
       if (logs.length > 0) {
