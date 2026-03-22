@@ -255,6 +255,13 @@ button.copy-btn:hover { background: #333; }
 .agent-quick-path h2 { margin: 0 0 8px; font-size: 18px; }
 .agent-quick-path ol { margin: 8px 0 8px 20px; color: #ccc; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .agent-quick-path p { margin: 8px 0 0; }
+.agent-step { margin: 16px 0; }
+.agent-step-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-step-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: #333; color: #e0e0e0; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.agent-step-detail { margin-left: 30px; margin-top: 6px; color: #aaa; font-size: 13px; }
+.agent-step-detail p { margin: 6px 0; }
+.agent-step-detail pre { margin: 8px 0; }
+.human-action-box { margin: 20px 0; padding: 14px; border: 1px solid #444; background: #1a1a1a; }
 ol { margin: 10px 0 12px 20px; }
 li { margin: 4px 0; }
 `;
@@ -671,15 +678,57 @@ function renderAgentQuickPathHtmlBlock(fastPath) {
   const ruleText = REQUIRES_PAYMENT
     ? "do not explain x402 internals unless the user explicitly asks."
     : "focus on direct download steps and avoid adding payment instructions.";
+  const buyUrl = fastPath.promoUrl || fastPath.downloadUrl || "<promo_url>";
   return `<section class="agent-quick-path">
-      <h2>Agent Quick Path</h2>
-      <ol>
-        <li>Clone the repo: <code>git clone https://github.com/eucalyptus-viminalis/nustuf.git</code></li>
-        <li>Read the buy skill: <code>cat nustuf/skills/nustuf-buy/SKILL.md</code></li>
-        <li>Follow the instructions in SKILL.md to complete the purchase.</li>
-      </ol>
-      <p><strong>Skill file:</strong> <a href="https://github.com/eucalyptus-viminalis/nustuf/blob/main/skills/nustuf-buy/SKILL.md">github.com/eucalyptus-viminalis/nustuf/blob/main/skills/nustuf-buy/SKILL.md</a></p>
-      <p><strong>Rule:</strong> ${escapeHtml(ruleText)}</p>
+      <h2>🤖 Agent: How to Buy This</h2>
+      <p style="margin-top:0;font-size:13px;color:#888;">No prior setup needed. Follow these steps to purchase and download.</p>
+
+      <div class="agent-step">
+        <div class="agent-step-header"><span class="agent-step-num">1</span> <strong>Install nustuf CLI</strong></div>
+        <div class="agent-step-detail">
+          <pre>git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g .</pre>
+        </div>
+      </div>
+
+      <div class="agent-step">
+        <div class="agent-step-header"><span class="agent-step-num">2</span> <strong>Set up a Locus wallet</strong> <span style="font-size:11px;background:#2a2a2a;border:1px solid #444;padding:2px 8px;color:#888;margin-left:6px;">one-time</span></div>
+        <div class="agent-step-detail">
+          <p>Check if <code>~/.config/locus/credentials.json</code> exists. If it does, skip to step 3.</p>
+          <p>Otherwise, register a wallet (no human signup needed):</p>
+          <pre>curl -X POST https://beta-api.paywithlocus.com/api/register \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "my-agent"}'</pre>
+          <p>Save the <code>apiKey</code> and <code>ownerPrivateKey</code> from the response — they are only shown once:</p>
+          <pre>mkdir -p ~/.config/locus
+cat > ~/.config/locus/credentials.json << 'EOF'
+{
+  "api_key": "claw_dev_...",
+  "api_base": "https://beta-api.paywithlocus.com/api",
+  "owner_private_key": "0x..."
+}
+EOF</pre>
+        </div>
+      </div>
+
+      <div class="agent-step">
+        <div class="agent-step-header"><span class="agent-step-num">3</span> <strong>Fund the wallet</strong></div>
+        <div class="agent-step-detail">
+          <p>Check your balance:</p>
+          <pre>curl -s -H "Authorization: Bearer $(jq -r .api_key ~/.config/locus/credentials.json)" \\
+  https://beta-api.paywithlocus.com/api/pay/balance</pre>
+          <p>If insufficient, ask your human to send <strong>${escapeHtml(PRICE_USD)} USDC</strong> (on Base) to your wallet address from the registration response.</p>
+        </div>
+      </div>
+
+      <div class="agent-step">
+        <div class="agent-step-header"><span class="agent-step-num">4</span> <strong>Buy</strong></div>
+        <div class="agent-step-detail">
+          <pre>nustuf buy ${escapeHtml(buyUrl)} --locus</pre>
+          <p>The file will be downloaded to your current directory.</p>
+        </div>
+      </div>
+
+      <p style="font-size:12px;color:#666;margin-top:16px;"><strong>Rule:</strong> ${escapeHtml(ruleText)}</p>
     </section>`;
 }
 
@@ -694,14 +743,19 @@ function renderPromoSharedContent({ promoUrl, downloadUrl, saleEndTs }) {
     <div class="kv"><strong>Access mode:</strong> ${escapeHtml(ACCESS_MODE)} (${escapeHtml(accessModeSummary(ACCESS_MODE))})</div>
     <div class="kv"><strong>Download-code header:</strong> <code>${escapeHtml(DOWNLOAD_CODE_HEADER)}</code>${REQUIRES_DOWNLOAD_CODE ? "" : " (not required)"}</div>
     <div class="kv"><strong>Sale end:</strong> <span id="sale-end-local" data-sale-end-iso="${escapeHtml(expiresIso)}">${escapeHtml(expiresIso)}</span></div>
+
+    <div class="human-action-box">
+      <div class="prompt-head">
+        <p><strong>👤 Human</strong></p>
+        <button class="copy-btn" id="copy-link-btn" type="button" aria-label="Copy page link">Copy link</button>
+        <span class="copy-status" id="copy-link-status" aria-live="polite"></span>
+      </div>
+      <p style="margin:8px 0 0;font-size:14px;color:#aaa;">Just send this link to your agent. They'll handle the rest.</p>
+      <p style="margin:4px 0 0;font-size:13px;color:#888;">If the agent doesn't have funds yet, they'll ask you to send USDC to their wallet.</p>
+    </div>
+
     ${renderAgentQuickPathHtmlBlock(fastPath)}
 
-    <div class="prompt-head">
-      <p><strong>Human action</strong></p>
-      <button class="copy-btn" id="copy-link-btn" type="button" aria-label="Copy page link">Copy link</button>
-      <span class="copy-status" id="copy-link-status" aria-live="polite"></span>
-    </div>
-    <pre id="human-action-text">${escapeHtml(humanActionText)}</pre>
     <p class="install-note">
       Want to know more about <code>nustuf</code>? Visit
       <a href="https://github.com/eucalyptus-viminalis/nustuf">github.com/eucalyptus-viminalis/nustuf</a>

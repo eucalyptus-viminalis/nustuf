@@ -86,7 +86,7 @@ function loadLocusApiKey() {
   if (fs.existsSync(homePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(homePath, "utf8"));
-      if (data.apiKey) return data.apiKey;
+      if (data.apiKey || data.api_key) return data.apiKey || data.api_key;
     } catch {}
   }
   
