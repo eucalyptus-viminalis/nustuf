@@ -8,8 +8,9 @@ const outUi = createUi(process.stdout);
 const errUi = createUi(process.stderr);
 
 // Registry contract address (TODO: deploy and update)
-const REGISTRY_ADDRESS = process.env.NUSTUF_REGISTRY_ADDRESS || null;
-const REGISTRY_CHAIN = process.env.NUSTUF_REGISTRY_CHAIN || "base-sepolia";
+const DEFAULT_REGISTRY_ADDRESS = "0x134597d9Cc6270571C2b8245c4235f7838C0d65D";
+const REGISTRY_ADDRESS = process.env.NUSTUF_REGISTRY_ADDRESS || DEFAULT_REGISTRY_ADDRESS;
+const REGISTRY_CHAIN = process.env.NUSTUF_REGISTRY_CHAIN || "base";
 
 // Minimal ABI for reading releases
 const REGISTRY_ABI = [
