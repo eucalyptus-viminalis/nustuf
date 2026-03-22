@@ -177,6 +177,14 @@
   }
   
   // Decode string from ABI-encoded data at offset
+  function decodeStringAt(data, hexOffset) {
+    // hexOffset is already in hex chars (byte offset * 2)
+    const len = Number(decodeUint(data.slice(hexOffset, hexOffset + 64)));
+    if (len === 0) return '';
+    const hexStr = data.slice(hexOffset + 64, hexOffset + 64 + len * 2);
+    return new TextDecoder().decode(new Uint8Array(hexStr.match(/.{2}/g).map(b => parseInt(b, 16))));
+  }
+
   function decodeString(data, offsetBytes) {
     const offset = Number(decodeUint(data.slice(offsetBytes * 2, offsetBytes * 2 + 64)));
     const len = Number(decodeUint(data.slice(offset * 2, offset * 2 + 64)));
@@ -205,15 +213,24 @@
   
   // Fetch release details from contract (title, description)
   async function getRelease(releaseId) {
-    // getRelease(bytes32) selector: 0x7e3ba677 (keccak256 of "getRelease(bytes32)")
-    // We need the actual selector. Let's compute: first 4 bytes of keccak256("getRelease(bytes32)")
-    // Hardcode: function selector for getRelease(bytes32)
-    const selector = '0xb2510225'; // we'll try a few
-    // Actually let's just use eth_call with raw data
-    // selector = keccak256("getRelease(bytes32)")[0:8]
-    // We can't easily keccak in browser, so let's try calling with viem-style encoding
-    // For now, skip the on-chain call and just show what we have from the event
-    return null;
+    const selector = '0x7f698e92';
+    const paddedId = releaseId.slice(2).padStart(64, '0');
+    const data = selector + paddedId;
+    const result = await rpcCall('eth_call', [{ to: REGISTRY, data }, 'latest']);
+    const hex = result.slice(2);
+    // Decode tuple: creator(address), url(string), priceUsdc(uint256), contentHash(bytes32), expiresAt(uint256), title(string), description(string), active(bool)
+    const creator = decodeAddress('0x' + hex.slice(0, 64));
+    const urlOffset = Number(decodeUint(hex.slice(64, 128))) * 2;
+    const priceUsdc = decodeUint(hex.slice(128, 192));
+    const contentHash = '0x' + hex.slice(192, 256);
+    const expiresAt = decodeUint(hex.slice(256, 320));
+    const titleOffset = Number(decodeUint(hex.slice(320, 384))) * 2;
+    const descOffset = Number(decodeUint(hex.slice(384, 448))) * 2;
+    const active = Number(decodeUint(hex.slice(448, 512))) === 1;
+    const url = decodeStringAt(hex, urlOffset);
+    const title = decodeStringAt(hex, titleOffset);
+    const description = decodeStringAt(hex, descOffset);
+    return { creator, url, priceUsdc, contentHash, expiresAt, title, description, active };
   }
   
   function renderRelease(log, isNew = false) {
@@ -241,13 +258,25 @@
     const txHash = log.transactionHash;
     const shortId = releaseId.slice(0, 10) + '…' + releaseId.slice(-6);
     
+    // Fetch full release details (title, description) from contract
+    let title = '';
+    let description = '';
+    try {
+      const release = await getRelease(releaseId);
+      title = release.title || '';
+      description = release.description || '';
+    } catch {}
+    
+    const displayTitle = title || shortId;
+    
     const el = document.createElement('div');
     el.className = 'release' + (isNew ? ' new' : '') + (expired ? ' expired' : '');
     el.innerHTML = `
       <div class="release-header">
-        <span class="release-title">${shortId}</span>
+        <span class="release-title">${displayTitle}</span>
         ${expired ? '<span class="tag expired-tag">expired</span>' : '<span class="tag live-tag">live</span>'}
       </div>
+      ${description ? `<div class="release-desc">${description}</div>` : ''}
       <div class="release-meta">
         <span class="price">${formatUsdc(priceUsdc)}</span>
         <span>expires ${formatTime(expiresAt)}</span>
