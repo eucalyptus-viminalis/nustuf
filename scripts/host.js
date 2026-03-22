@@ -52,7 +52,7 @@ function usageAndExit(code = 1, hint = "") {
   console.log('    "proxy": { "host": "127.0.0.1", "port": 4080 },');
   console.log("    \"defaults\": {");
   console.log('      "window": "1h",');
-  console.log('      "network": "eip155:84532",');
+  console.log('      "network": "eip155:8453",');
   console.log('      "payTo": "0x...",');
   console.log('      "price": "0.01"');
   console.log("    },");

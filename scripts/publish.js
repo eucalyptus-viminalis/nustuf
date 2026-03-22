@@ -323,7 +323,7 @@ function resolvePublishPrefill({ args, configDefaults }) {
   const requiresDownloadCode = accessModeRequiresDownloadCode(accessMode);
 
   const networkInput = trim(
-    args.network || process.env.CHAIN_ID || configDefaults.chainId || "eip155:84532",
+    args.network || process.env.CHAIN_ID || configDefaults.chainId || "eip155:8453",
   );
 
   const facilitatorModeInput = trim(
@@ -513,14 +513,14 @@ async function runPublishWizard({ args, configDefaults }) {
       state.payTo = "";
     }
 
-    let networkInput = await askWithDefault("CHAIN_ID", state.networkInput || "eip155:84532");
+    let networkInput = await askWithDefault("CHAIN_ID", state.networkInput || "eip155:8453");
     while (true) {
       try {
         state.networkInput = resolveSupportedChain(networkInput).caip2;
         break;
       } catch (err) {
         logError(err.message || String(err));
-        networkInput = await askWithDefault("CHAIN_ID", networkInput || "eip155:84532");
+        networkInput = await askWithDefault("CHAIN_ID", networkInput || "eip155:8453");
       }
     }
 
@@ -1395,7 +1395,7 @@ async function main() {
     process.exit(1);
   }
 
-  const networkInput = args.network || process.env.CHAIN_ID || configDefaults.chainId || "eip155:84532";
+  const networkInput = args.network || process.env.CHAIN_ID || configDefaults.chainId || "eip155:8453";
   let network;
   let networkName;
   try {

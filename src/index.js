@@ -85,7 +85,7 @@ function toSafeJsonForScript(value) {
 const PORT = Number(process.env.PORT || 4021);
 
 // Mirror the Python env names (with a couple backwards-compatible aliases)
-const FACILITATOR_MODE = (process.env.FACILITATOR_MODE || "testnet").trim();
+const FACILITATOR_MODE = (process.env.FACILITATOR_MODE || "cdp_mainnet").trim();
 const CDP_API_KEY_ID = (process.env.CDP_API_KEY_ID || "").trim();
 const CDP_API_KEY_SECRET = (process.env.CDP_API_KEY_SECRET || "").trim();
 const DEFAULT_TESTNET_FACILITATOR_URL = "https://x402.org/facilitator";
@@ -106,7 +106,7 @@ const ACCESS_MODE = String(
 ).trim().toLowerCase();
 const DOWNLOAD_CODE_HASH = String(process.env.DOWNLOAD_CODE_HASH || "").trim();
 const RAW_CHAIN_ID =
-  process.env.CHAIN_ID || process.env.NETWORK || "eip155:84532";
+  process.env.CHAIN_ID || process.env.NETWORK || "eip155:8453";
 const ARTIFACT_PATH = process.env.ARTIFACT_PATH || process.env.PROTECTED_FILE;
 const WINDOW_SECONDS = Number(process.env.WINDOW_SECONDS || 3600);
 const MAX_GRANTS = parsePositiveInt(process.env.MAX_GRANTS, 10000);
