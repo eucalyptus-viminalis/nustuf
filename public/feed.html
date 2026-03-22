@@ -156,7 +156,7 @@
   async function getAnnouncementLogs(fromBlock = null) {
     if (!fromBlock) {
       const latest = await rpcCall('eth_blockNumber', []);
-      fromBlock = '0x' + Math.max(0, Number(BigInt(latest)) - 9000).toString(16);
+      fromBlock = '0x' + Math.max(0, Number(BigInt(latest)) - 100000).toString(16);
     }
     const logs = await rpcCall('eth_getLogs', [{
       address: REGISTRY,
