@@ -105,8 +105,8 @@
 
 <script type="module">
   const REGISTRY = '0x134597d9Cc6270571C2b8245c4235f7838C0d65D';
-  const RPC = 'https://sepolia.base.org';
-  const SCAN = 'https://sepolia.basescan.org';
+  const RPC = 'https://mainnet.base.org';
+  const SCAN = 'https://basescan.org';
   
   // ReleaseAnnounced event signature
   const EVENT_SIG = '0x' + await sha256('ReleaseAnnounced(bytes32,address,string,uint256,uint256)');
@@ -268,7 +268,7 @@
   async function loadAll() {
     try {
       const logs = await getAnnouncementLogs();
-      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · base sepolia`;
+      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · base mainnet`;
       statusEl.className = 'status live';
       
       // Render oldest first so newest end up on top
@@ -300,7 +300,7 @@
       
       if (logs.length > 0) {
         const total = seenIds.size;
-        statusEl.textContent = `connected · ${total} announcement${total !== 1 ? 's' : ''} · base sepolia`;
+        statusEl.textContent = `connected · ${total} announcement${total !== 1 ? 's' : ''} · base mainnet`;
         return logs[logs.length - 1].blockNumber;
       }
       return fromBlock;
