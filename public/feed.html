@@ -217,7 +217,10 @@
     const paddedId = releaseId.slice(2).padStart(64, '0');
     const data = selector + paddedId;
     const result = await rpcCall('eth_call', [{ to: REGISTRY, data }, 'latest']);
-    const hex = result.slice(2);
+    const rawHex = result.slice(2);
+    // Return is wrapped in an outer tuple offset — skip first 32-byte slot (0x20 pointer)
+    const outerOffset = Number(decodeUint(rawHex.slice(0, 64))) * 2;
+    const hex = rawHex.slice(outerOffset);
     // Decode tuple: creator(address), url(string), priceUsdc(uint256), contentHash(bytes32), expiresAt(uint256), title(string), description(string), active(bool)
     const creator = decodeAddress('0x' + hex.slice(0, 64));
     const urlOffset = Number(decodeUint(hex.slice(64, 128))) * 2;
