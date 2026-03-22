@@ -297,7 +297,7 @@
   async function loadAll() {
     try {
       const logs = await getAnnouncementLogs();
-      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · base mainnet`;
+      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · last 2000 blocks · base mainnet`;
       statusEl.className = 'status live';
       
       // Render oldest first so newest end up on top
