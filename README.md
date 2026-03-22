@@ -142,6 +142,8 @@ nustuf config     Manage configuration
 
 Run `nustuf --help` or `nustuf <command> --help` for details.
 
+> **Note:** `nustuf publish` launches an interactive wizard by default. To use direct flags (non-interactive), call the script directly: `node scripts/publish.js --file <path> --price <usdc> --window <duration> --pay-to <address> [--public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE]`
+
 ## Stack
 
 - **[x402](https://www.x402.org/)** — HTTP 402 payment protocol
