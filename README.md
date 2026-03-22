@@ -151,8 +151,9 @@ Run `nustuf --help` or `nustuf <command> --help` for details.
 
 ## Smart Contract
 
-NustufRegistry is deployed on Base Sepolia:
-[`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://sepolia.basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
+NustufRegistry is deployed on:
+- **Base Mainnet:** [`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
+- **Base Sepolia:** [`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://sepolia.basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
 
 ## License
 
