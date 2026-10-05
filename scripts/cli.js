@@ -50,7 +50,7 @@ function printHelp() {
   console.log("  --access-mode <mode>       Access mode");
   console.log("  --download-code <code>     Set download code");
   console.log("  --public                   Expose publicly (requires confirmation)");
-  console.log("  --announce                 Announce on-chain for discovery");
+  console.log("  (then run `nustuf announce` to list the drop on-chain)");
   console.log("");
   console.log(outUi.section("Buy Options"));
   console.log("  --locus                    Pay via Locus wallet (recommended)");

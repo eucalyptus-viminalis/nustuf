@@ -15,9 +15,10 @@ import { createUi } from "./ui.js";
 const outUi = createUi(process.stdout);
 const errUi = createUi(process.stderr);
 
-// Registry contract address (set via env)
-const REGISTRY_ADDRESS = process.env.NUSTUF_REGISTRY_ADDRESS;
-const REGISTRY_CHAIN = process.env.NUSTUF_REGISTRY_CHAIN || "base-sepolia";
+// Same defaults as discover.js, so a default announce is visible to a default discover.
+const DEFAULT_REGISTRY_ADDRESS = "0x134597d9Cc6270571C2b8245c4235f7838C0d65D";
+const REGISTRY_ADDRESS = process.env.NUSTUF_REGISTRY_ADDRESS || DEFAULT_REGISTRY_ADDRESS;
+const REGISTRY_CHAIN = process.env.NUSTUF_REGISTRY_CHAIN || "base";
 
 // Minimal ABI for announcing
 const REGISTRY_ABI = [
@@ -52,7 +53,7 @@ function usageAndExit(code = 1) {
   console.log("  --content-hash <hex>      Content hash (optional, computed if --file given)");
   console.log("  --file <path>             File to hash for content verification");
   console.log("  --private-key-file <path> Deployer key file (or set DEPLOYER_PRIVATE_KEY)");
-  console.log("  --testnet                 Use Base Sepolia");
+  console.log("  --testnet                 Use Base Sepolia (default: Base mainnet, costs real gas)");
   console.log("");
   console.log(outUi.section("Examples"));
   console.log("  nustuf announce --url https://xxx.trycloudflare.com/ --price 0.50 --expires 1710720000 --title 'My Drop'");
@@ -126,7 +127,7 @@ export async function announceRelease(options) {
     title = "",
     description = "",
     contentHash = "0x" + "0".repeat(64),
-    useTestnet = true,
+    useTestnet = false,
     privateKey,
     registryAddress = REGISTRY_ADDRESS,
   } = options;
