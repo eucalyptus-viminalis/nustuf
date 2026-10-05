@@ -4,11 +4,29 @@
 
 # nustuf
 
-Agent-native content marketplace. Publish files behind USDC paywalls, discover drops on-chain, buy with one command.
+Agent-native content marketplace. Publish a file behind a USDC paywall with one command, and let AI agents discover it on-chain and buy it on their own.
 
-Built for [The Synthesis 2026](https://synthesis.md) hackathon.
+**3rd place, [The Synthesis 2026](https://synthesis.md) hackathon** (Best Use of Locus / Agent Services on Base).
 
-## Quick Start
+## Why
+
+AI agents are getting good at finding information, but they still can't pay for it. Most paid content sits behind accounts, checkouts and card forms built for humans, so an agent either stops or needs a person to step in.
+
+nustuf removes the human from both sides of the sale. A creator turns any file into a paid link, and an agent with a wallet can find that link through an on-chain registry, receive an HTTP `402 Payment Required`, pay in USDC and download the file, all without anyone setting up a store or an account. It is built on the [x402](https://www.x402.org/) payment protocol, [Locus](https://paywithlocus.com) agent wallets and [Base](https://base.org).
+
+## Demo
+
+| Promo page a buyer lands on | Live feed of on-chain drops |
+|---|---|
+| ![Promo page](demo/promo-page.png) | ![Live feed](demo/feed-ui.png) |
+
+A full publish, discover and buy run, with terminal output, is in [`demo/terminal-output.md`](demo/terminal-output.md).
+
+<!-- TODO: embed the 60-90 second demo video here once recorded -->
+
+## Quick start
+
+Requirements: Node.js 18 or later, and npm. nustuf is not on the npm registry yet, so install it from source:
 
 ```bash
 git clone https://github.com/eucalyptus-viminalis/nustuf.git
@@ -18,9 +36,9 @@ npm link  # makes `nustuf` available globally
 ```
 
 > **🤖 Agents:** Check the `skills/` directory for step-by-step guides:
-> - [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md) — Buy content (includes Locus wallet setup)
-> - [`skills/nustuf-publish/SKILL.md`](skills/nustuf-publish/SKILL.md) — Publish content behind a paywall
-> - [`skills/nustuf-discover/SKILL.md`](skills/nustuf-discover/SKILL.md) — Discover live drops on-chain
+> - [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md): buy content (includes Locus wallet setup)
+> - [`skills/nustuf-publish/SKILL.md`](skills/nustuf-publish/SKILL.md): publish content behind a paywall
+> - [`skills/nustuf-discover/SKILL.md`](skills/nustuf-discover/SKILL.md): discover live drops on-chain
 
 ### Sell something
 
@@ -28,24 +46,15 @@ npm link  # makes `nustuf` available globally
 nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public
 ```
 
-This will:
-- Spin up a server with x402 payment gating
-- Create a public URL via Cloudflare Tunnel
-- Give you a shareable promo link
+This starts a server with x402 payment gating, opens a public URL through a Cloudflare quick tunnel, and prints a shareable promo link.
 
-Add `--announce` to register your drop on the on-chain registry so agents can discover it:
+Add `--announce` to register the drop on the on-chain registry so agents can find it:
 
 ```bash
 nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --announce --title "My Track"
 ```
 
-### Buy something
-
-```bash
-nustuf buy https://some-nustuf-url.com/ --locus
-```
-
-Pays with your [Locus](https://paywithlocus.com) wallet and downloads the file.
+> **Note:** `nustuf publish` launches an interactive wizard by default. To use direct flags (non-interactive), call the script directly: `node scripts/publish.js --file <path> --price <usdc> --window <duration> --pay-to <address> [--public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE]`
 
 ### Discover drops
 
@@ -53,7 +62,15 @@ Pays with your [Locus](https://paywithlocus.com) wallet and downloads the file.
 nustuf discover --active
 ```
 
-Queries the on-chain registry for available content.
+Queries the registry for live releases. Filter with `--creator`, `--max-price` and `--limit`, add `--json` for agent-friendly output, or `--testnet` to read Base Sepolia.
+
+### Buy something
+
+```bash
+nustuf buy https://some-nustuf-url.com/ --locus
+```
+
+Pays with your Locus wallet and downloads the file.
 
 ### Browse the feed
 
@@ -61,41 +78,21 @@ Queries the on-chain registry for available content.
 nustuf feed-ui
 ```
 
-Opens a local web UI showing live announcements from the on-chain registry. No wallet or config needed — just browse what's available.
+Opens a local web UI showing live announcements from the on-chain registry. No wallet or config needed.
 
-## Setup
+## Configuration
 
-### Locus Wallet (for buying)
+Set these as environment variables or in a `.env` file.
 
-Set your Locus API key:
+| Variable | Needed for | Notes |
+|---|---|---|
+| `LOCUS_API_KEY` | `buy` | Locus agent wallet. A `.locus.json` file with `{ "apiKey": "..." }` also works. No wallet yet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). |
+| `NUSTUF_REGISTRY_ADDRESS` | `announce` | Required to announce. Set it to `0x134597d9Cc6270571C2b8245c4235f7838C0d65D`. `discover` uses this address by default. |
+| `NUSTUF_REGISTRY_CHAIN` | `announce`, `discover` | `base` or `base-sepolia`. `discover` defaults to `base` but `announce` defaults to `base-sepolia`, so set `NUSTUF_REGISTRY_CHAIN=base` if you want your drops to show up in a default `discover`. |
+| `DEPLOYER_PRIVATE_KEY` | `announce` | Key that signs the on-chain announcement. Use a dedicated low-value key. |
+| `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, `FACILITATOR_MODE=cdp_mainnet` | mainnet payments | Coinbase Developer Platform keys for settling USDC on Base mainnet. |
 
-```bash
-export LOCUS_API_KEY=your_key_here
-```
-
-Or create a `.locus.json` file:
-
-```json
-{ "apiKey": "your_key_here" }
-```
-
-Don't have a Locus wallet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md) for setup instructions.
-
-### Seller Config
-
-For publishing, you need:
-- A payout address (`--pay-to`)
-- Optional: a deployer key for on-chain announcements (`DEPLOYER_PRIVATE_KEY` in `.env`)
-
-For mainnet payments, also set CDP API keys:
-
-```bash
-export CDP_API_KEY_ID=your_id
-export CDP_API_KEY_SECRET=your_secret
-export FACILITATOR_MODE=cdp_mainnet
-```
-
-## How It Works
+## How it works
 
 ```
 Creator                          Blockchain                        Buyer Agent
@@ -110,15 +107,15 @@ Creator                          Blockchain                        Buyer Agent
   │  ✅ Content delivered            │                                  │
 ```
 
-1. **Publish**: Creator runs `nustuf publish` → server goes live with a public URL, drop announced on-chain
-2. **Discover**: Buyer agent queries the on-chain registry for available content
-3. **Buy**: Buyer agent hits the URL, gets a 402 (Payment Required), pays via Locus wallet, downloads the content
+1. **Publish:** the creator runs `nustuf publish`. A local Express server gates the file with x402, a Cloudflare tunnel gives it a public URL, and `--announce` writes the drop to the registry.
+2. **Discover:** a buyer agent reads active releases from the registry with viem.
+3. **Buy:** the agent requests the URL, receives a `402 Payment Required` with the price and payee, pays in USDC through its Locus wallet, and gets the file.
 
-All payments are in USDC on Base.
+The buyer never needs to know the file format or create an account; the HTTP response tells it everything it needs to pay.
 
-## Agent Skills
+## Agent skills
 
-nustuf ships with 3 agent skills in the `skills/` directory. Each has a `SKILL.md` with full instructions an agent can follow autonomously:
+nustuf ships 3 agent skills in the `skills/` directory. Each has a `SKILL.md` with full instructions an agent can follow autonomously:
 
 | Skill | Description |
 |-------|-------------|
@@ -128,7 +125,7 @@ nustuf ships with 3 agent skills in the `skills/` directory. Each has a `SKILL.m
 
 Running nustuf servers also expose skill metadata at `/.well-known/skills/index.json` for automated agent discovery.
 
-## CLI Reference
+## CLI reference
 
 ```
 nustuf publish    Publish content behind payment gate
@@ -142,20 +139,29 @@ nustuf config     Manage configuration
 
 Run `nustuf --help` or `nustuf <command> --help` for details.
 
-> **Note:** `nustuf publish` launches an interactive wizard by default. To use direct flags (non-interactive), call the script directly: `node scripts/publish.js --file <path> --price <usdc> --window <duration> --pay-to <address> [--public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE]`
-
 ## Stack
 
-- **[x402](https://www.x402.org/)** — HTTP 402 payment protocol
-- **[Locus](https://paywithlocus.com)** — Agent wallet for autonomous USDC payments
-- **[Base](https://base.org)** — L2 for USDC payments + on-chain registry
-- **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)** — Zero-config public URLs
+- **Node.js and Express:** CLI and payment-gated content server
+- **[x402](https://www.x402.org/):** HTTP 402 payment protocol
+- **[Locus](https://paywithlocus.com):** agent wallet for autonomous USDC payments
+- **[Base](https://base.org):** L2 for USDC payments and the on-chain registry
+- **Solidity and Foundry:** the `NustufRegistry` contract ([`contracts/`](contracts/))
+- **viem:** chain reads and writes
+- **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/):** zero-config public URLs
 
-## Smart Contract
+## Smart contract
 
-NustufRegistry is deployed on:
+NustufRegistry is deployed at the same address on both networks:
 - **Base Mainnet:** [`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
 - **Base Sepolia:** [`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://sepolia.basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
+
+## Status
+
+nustuf was built during a hackathon and works end to end, but it is not production software:
+
+- The package is not published to npm yet; install from source as above.
+- Quick tunnels are ephemeral, so a drop's URL lasts only as long as the publishing process runs.
+- `announce` and `discover` default to different networks (see Configuration).
 
 ## License
 
