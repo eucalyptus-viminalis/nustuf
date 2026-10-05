@@ -46,15 +46,21 @@ npm link  # makes `nustuf` available globally
 nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public
 ```
 
-This starts a server with x402 payment gating, opens a public URL through a Cloudflare quick tunnel, and prints a shareable promo link.
+This starts a server with x402 payment gating, opens a public URL through a Cloudflare quick tunnel, and prints a shareable promo link. Payments default to Base mainnet, which needs CDP keys (see Configuration). To try it without them, sell on Base Sepolia with `--network eip155:84532`.
 
-Then register the drop on the on-chain registry so agents can find it, using the `public_url` that `publish` printed:
+Add `--announce` to list the drop in the on-chain registry as soon as its public URL is live, so agents can find it:
 
 ```bash
-nustuf announce --url https://xxx.trycloudflare.com/ --price 0.50 --expires <unix-timestamp> --title "My Track" --file ./track.mp3
+nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --announce --title "My Track"
 ```
 
-Announcing writes to Base mainnet by default (real gas); add `--testnet` to use Base Sepolia.
+A full testnet run, with payments and the listing both on Base Sepolia:
+
+```bash
+nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --network eip155:84532 --announce --testnet --title "My Track"
+```
+
+The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file. It is signed with `DEPLOYER_PRIVATE_KEY` (or `--private-key-file`) and written to Base mainnet by default, which costs a little gas; add `--testnet` for Base Sepolia. If the announce fails, the drop stays live and nustuf prints the `nustuf announce` command to retry by hand.
 
 > **Note:** `nustuf publish` launches an interactive wizard by default. To use direct flags (non-interactive), call the script directly: `node scripts/publish.js --file <path> --price <usdc> --window <duration> --pay-to <address> [--public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE]`
 
@@ -89,9 +95,9 @@ Set these as environment variables or in a `.env` file.
 | Variable | Needed for | Notes |
 |---|---|---|
 | `LOCUS_API_KEY` | `buy` | Locus agent wallet. A `.locus.json` file with `{ "apiKey": "..." }` also works. No wallet yet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). |
-| `NUSTUF_REGISTRY_ADDRESS` | `announce`, `discover` | Optional. Defaults to the deployed registry, `0x134597d9Cc6270571C2b8245c4235f7838C0d65D`. |
-| `NUSTUF_REGISTRY_CHAIN` | `announce`, `discover` | Optional. `base` (default) or `base-sepolia`. Both commands use the same default, so announced drops show up in `discover`. |
-| `DEPLOYER_PRIVATE_KEY` | `announce` | Key that signs the on-chain announcement. Use a dedicated low-value key. |
+| `NUSTUF_REGISTRY_ADDRESS` | `publish --announce`, `announce`, `discover` | Optional. Defaults to the deployed registry, `0x134597d9Cc6270571C2b8245c4235f7838C0d65D`. |
+| `NUSTUF_REGISTRY_CHAIN` | `publish --announce`, `announce`, `discover` | Optional. `base` (default) or `base-sepolia`. Both commands use the same default, so announced drops show up in `discover`. |
+| `DEPLOYER_PRIVATE_KEY` | `publish --announce`, `announce` | Key that signs the on-chain announcement. Use a dedicated low-value key. |
 | `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, `FACILITATOR_MODE=cdp_mainnet` | mainnet payments | Coinbase Developer Platform keys for settling USDC on Base mainnet. |
 
 ## How it works
@@ -109,7 +115,7 @@ Creator                          Blockchain                        Buyer Agent
   │  ✅ Content delivered            │                                  │
 ```
 
-1. **Publish:** the creator runs `nustuf publish`. A local Express server gates the file with x402 and a Cloudflare tunnel gives it a public URL; `nustuf announce` then writes the drop to the registry.
+1. **Publish:** the creator runs `nustuf publish`. A local Express server gates the file with x402, a Cloudflare tunnel gives it a public URL, and `--announce` writes the drop to the registry.
 2. **Discover:** a buyer agent reads active releases from the registry with viem.
 3. **Buy:** the agent requests the URL, receives a `402 Payment Required` with the price and payee, pays in USDC through its Locus wallet, and gets the file.
 
@@ -163,7 +169,7 @@ nustuf was built during a hackathon and works end to end, but it is not producti
 
 - The package is not published to npm yet; install from source as above.
 - Quick tunnels are ephemeral, so a drop's URL lasts only as long as the publishing process runs.
-- Announcing is a separate step: `publish` does not register the drop on-chain itself, so run `nustuf announce` with the URL it prints.
+- A drop is announced once, on its first public URL. If the server restarts and the tunnel URL changes, nustuf warns and prints a `nustuf announce` command rather than writing a second listing.
 
 ## License
 

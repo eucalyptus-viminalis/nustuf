@@ -28,6 +28,7 @@ import {
   isValidDownloadCodeHash,
 } from "../src/download_code.js";
 import { createUi } from "./ui.js";
+import { announceRelease, computeFileHash, loadPrivateKey, registryUsesTestnet } from "./announce.js";
 const { Select, Input } = enquirer;
 const HiddenCodePrompt = enquirer["Pass" + "word"];
 
@@ -67,6 +68,13 @@ function usageAndExit(code = 1, hint = "") {
   console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
   console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
   console.log("");
+  console.log(outUi.section("On-chain announce"));
+  console.log("  --announce                 List the drop in the on-chain registry once the public URL is live (needs --public)");
+  console.log("  --title <text>             Registry title (default: --og-title, then the file name)");
+  console.log("  --description <text>       Registry description (default: --og-description)");
+  console.log("  --private-key-file <path>  Key that signs the announcement (or set DEPLOYER_PRIVATE_KEY)");
+  console.log("  --testnet                  Announce on Base Sepolia (default: Base mainnet, costs gas)");
+  console.log("");
   console.log(outUi.section("Notes"));
   console.log("  --public requires cloudflared (Cloudflare Tunnel) installed.");
   console.log("");
@@ -77,6 +85,7 @@ function usageAndExit(code = 1, hint = "") {
   console.log('  nustuf --file ./vape.jpg --access-mode download-code-only-no-payment --download-code "friends-only"');
   console.log('  nustuf --file ./vape.jpg --public --og-title "My New Drop" --og-description "Agent-assisted purchase"');
   console.log(`  nustuf --file ./vape.jpg --public --public-confirm ${PUBLIC_CONFIRM_PHRASE}`);
+  console.log(`  nustuf --file ./vape.jpg --price 0.50 --window 24h --public --public-confirm ${PUBLIC_CONFIRM_PHRASE} --announce --title "My Drop"`);
   console.log("  nustuf --file ./vape.jpg --public --og-image-url ./cover.png");
   console.log("  npm run nustuf -- --file ./vape.jpg");
   console.log("  npm run nustuf -- --file ./vape.jpg --price 0.01 --window 1h --confirmed");
@@ -1182,6 +1191,7 @@ async function supervisorMain({
   effectiveEndedWindowSeconds,
   runStatePaths,
   runState,
+  announcePlan = null,
 }) {
   console.log("");
   console.log(outUi.section("Supervisor"));
@@ -1193,6 +1203,26 @@ async function supervisorMain({
   ])) {
     console.log(line);
   }
+
+  // Announce once, on the first public URL. Quick-tunnel URLs change if the worker restarts,
+  // so later changes only warn instead of writing (and paying gas for) another registry entry.
+  let announcedUrl = null;
+  const announceIfNeeded = (promoUrl) => {
+    if (!announcePlan || !promoUrl) return;
+    const retryCmd = (url) =>
+      `nustuf announce --url ${url} --price ${announcePlan.priceUsdc} --expires ${announcePlan.expiresAt}` +
+      ` --title ${JSON.stringify(announcePlan.title)}${announcePlan.useTestnet ? " --testnet" : ""}`;
+    if (announcedUrl === null) {
+      announcedUrl = promoUrl;
+      announceRelease({ ...announcePlan, url: promoUrl }).catch((err) => {
+        logError(`On-chain announce failed: ${err?.shortMessage || err?.message || String(err)}`);
+        logWarn(`The drop is still live. Retry with: ${retryCmd(promoUrl)}`);
+      });
+    } else if (promoUrl !== announcedUrl) {
+      logWarn(`Public URL changed after a restart; the registry still lists ${announcedUrl}.`);
+      logWarn(`Re-announce with: ${retryCmd(promoUrl)}`);
+    }
+  };
 
   let manualStopRequested = false;
   let activeManualStop = null;
@@ -1249,6 +1279,7 @@ async function supervisorMain({
           runState.latestPromoUrl = urls.promoUrl;
           runState.latestBuyUrl = urls.buyUrl;
           runState = persistRunState(runStatePaths, runState);
+          announceIfNeeded(urls.promoUrl);
         },
       });
       activeManualStop = null;
@@ -1424,6 +1455,12 @@ async function main() {
   const effectiveFacilitatorMode = ALLOWED_FACILITATOR_MODES.has(facilitatorMode)
     ? facilitatorMode
     : "testnet";
+  // The server refuses Base mainnet with the testnet facilitator; fail here instead of crash-looping.
+  if (requiresPayment && network === "eip155:8453" && effectiveFacilitatorMode !== "cdp_mainnet") {
+    logError("Base mainnet payments (eip155:8453) need FACILITATOR_MODE=cdp_mainnet plus CDP_API_KEY_ID and CDP_API_KEY_SECRET.");
+    logError("To try nustuf without CDP keys, sell on Base Sepolia instead: add --network eip155:84532");
+    process.exit(1);
+  }
   const facilitatorUrl = (
     args["facilitator-url"] ||
     process.env.FACILITATOR_URL ||
@@ -1503,6 +1540,30 @@ async function main() {
     process.exit(1);
   }
 
+  // Resolve everything the on-chain announce needs before launch, so a missing key fails fast.
+  let announcePlan = null;
+  if (args.announce) {
+    if (!args.public) {
+      logError("--announce needs --public: buyers and agents can only reach a public URL.");
+      process.exit(1);
+    }
+    try {
+      const textArg = (key) => (typeof args[key] === "string" ? args[key] : "");
+      announcePlan = {
+        privateKey: loadPrivateKey(args),
+        useTestnet: registryUsesTestnet(args),
+        priceUsdc: Number(prompted.price),
+        expiresAt: saleEndTsFixed,
+        title: textArg("title") || ogTitle || path.basename(artifactPath),
+        description: textArg("description") || ogDescription || "",
+        contentHash: computeFileHash(artifactPath),
+      };
+    } catch (err) {
+      logError(`--announce: ${err.message || String(err)}`);
+      process.exit(1);
+    }
+  }
+
   // Spawn the server with explicit env so there's no confusion.
   const envBase = {
     ...process.env,
@@ -1549,6 +1610,9 @@ async function main() {
     ogImageResolved.ogImageUrl ? { key: "og_image_url", value: ogImageResolved.ogImageUrl } : null,
     ogImageResolved.ogImagePath ? { key: "og_image_path", value: ogImageResolved.ogImagePath } : null,
     { key: "ended_window", value: `${effectiveEndedWindowSeconds}s` },
+    announcePlan
+      ? { key: "announce", value: `on-chain registry (${announcePlan.useTestnet ? "Base Sepolia" : "Base"}), title "${announcePlan.title}"` }
+      : null,
   ];
   for (const line of outUi.formatRows(runtimeRows)) {
     console.log(line);
@@ -1616,6 +1680,7 @@ async function main() {
     effectiveEndedWindowSeconds,
     runStatePaths,
     runState,
+    announcePlan,
   });
   process.exit(exitCode);
 }

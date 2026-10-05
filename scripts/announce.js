@@ -81,7 +81,7 @@ function parseArgs(argv) {
   return args;
 }
 
-function computeFileHash(filePath) {
+export function computeFileHash(filePath) {
   const content = fs.readFileSync(filePath);
   const hash = createHash("sha256").update(content).digest("hex");
   return `0x${hash}`;
@@ -91,7 +91,11 @@ function getChain(useTestnet) {
   return useTestnet ? baseSepolia : base;
 }
 
-function loadPrivateKey(args) {
+export function registryUsesTestnet(args = {}) {
+  return Boolean(args.testnet) || REGISTRY_CHAIN === "base-sepolia";
+}
+
+export function loadPrivateKey(args) {
   // Check args first
   if (args["private-key-file"]) {
     const keyPath = path.resolve(process.cwd(), args["private-key-file"]);
@@ -213,7 +217,7 @@ async function main() {
   }
 
   const privateKey = loadPrivateKey(args);
-  const useTestnet = Boolean(args.testnet) || REGISTRY_CHAIN === "base-sepolia";
+  const useTestnet = registryUsesTestnet(args);
 
   await announceRelease({
     url: args.url,
