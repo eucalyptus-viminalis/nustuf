@@ -102,6 +102,8 @@ nustuf buy https://some-nustuf-url.com/ --locus
 
 Pays with your Locus wallet and downloads the file.
 
+Files are saved to `~/Downloads/nustuf/` by default (set `NUSTUF_DOWNLOAD_DIR` to change it, or pass `--out <file>`). nustuf never overwrites an existing file; the new one is saved as `name (1).ext`, and the full path is printed.
+
 ### Browse the feed
 
 ```bash

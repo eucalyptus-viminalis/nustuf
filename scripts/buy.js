@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import "dotenv/config";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { x402Client } from "@x402/core/client";
@@ -32,8 +33,10 @@ function usageAndExit(code = 1) {
   console.log("");
   console.log(outUi.section("Other Options"));
   console.log("  --download-code <code>          Include download code");
-  console.log("  --out <path>                    Output file path");
+  console.log("  --out <path>                    Output file path (a file, not a directory)");
   console.log("  --basename <name>               Output basename (keeps extension)");
+  console.log("  Files are saved to ~/Downloads/nustuf/ by default (override with NUSTUF_DOWNLOAD_DIR).");
+  console.log("  An existing file is never overwritten; the new file gets a (1), (2), ... suffix.");
   console.log("");
   console.log(outUi.section("Examples"));
   console.log("  nustuf buy https://xxx.trycloudflare.com/ --locus");
@@ -389,17 +392,36 @@ function validateOutPath(args) {
   }
 }
 
+// Default download folder: $NUSTUF_DOWNLOAD_DIR, else ~/Downloads/nustuf. Never the current directory,
+// which for an agent is often a temp or project folder the user will not look in.
+function defaultDownloadDir() {
+  const home = process.env.HOME || os.homedir();
+  const fromEnv = (process.env.NUSTUF_DOWNLOAD_DIR || "").trim();
+  if (fromEnv) return path.resolve(fromEnv.replace(/^~(?=$|[\\/])/, home));
+  return path.join(home, "Downloads", "nustuf");
+}
+
 function resolveOutputPath(args, serverFilename) {
   const safeServerFilename = sanitizeFilename(serverFilename || "downloaded.bin");
   if (args.out) {
-    return String(args.out);
+    return path.resolve(String(args.out));
   }
   if (args.basename) {
     const safeBase = sanitizeFilename(args.basename);
     const ext = path.extname(safeServerFilename) || "";
-    return `./${safeBase}${ext}`;
+    return path.join(defaultDownloadDir(), `${safeBase}${ext}`);
   }
-  return `./${safeServerFilename}`;
+  return path.join(defaultDownloadDir(), safeServerFilename);
+}
+
+// Never overwrite: if the file exists, save as "name (1).ext", "name (2).ext", ...
+function uniquePath(filePath) {
+  if (!fs.existsSync(filePath)) return filePath;
+  const { dir, name, ext } = path.parse(filePath);
+  for (let n = 1; ; n++) {
+    const candidate = path.join(dir, `${name} (${n})${ext}`);
+    if (!fs.existsSync(candidate)) return candidate;
+  }
 }
 
 async function saveBinaryResponse(response, args, suggestedFilename) {
@@ -408,10 +430,14 @@ async function saveBinaryResponse(response, args, suggestedFilename) {
     filenameFromContentDisposition(response.headers.get("content-disposition")) ||
     "downloaded.bin";
 
-  const outPath = resolveOutputPath(args, serverFilename);
+  const requestedPath = resolveOutputPath(args, serverFilename);
   const buf = Buffer.from(await response.arrayBuffer());
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, buf);
+  fs.mkdirSync(path.dirname(requestedPath), { recursive: true });
+  const outPath = uniquePath(requestedPath);
+  if (outPath !== requestedPath) {
+    console.log(outUi.statusLine("warn", `${requestedPath} already exists; not overwriting`));
+  }
+  fs.writeFileSync(outPath, buf, { flag: "wx" });
   console.log(outUi.statusLine("ok", `Saved ${buf.length} bytes -> ${outPath}`));
 }
 

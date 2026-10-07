@@ -87,13 +87,14 @@ nustuf buy <release-url> --locus
 nustuf buy <release-url> --download-code "friends-only"
 ```
 
-### Specify output location
+### Where the file is saved
 
-`--out` takes a **file path**, not a directory (a directory is rejected). Create the folder first and name the file; omit `--out` to save with the server's filename in the current directory.
+By default the file is saved to `~/Downloads/nustuf/` with the server's filename (set `NUSTUF_DOWNLOAD_DIR` to use another folder). nustuf never overwrites: if the file already exists the new one is saved as `name (1).ext`. The output prints the **absolute path**, so tell the user exactly where the file is.
+
+To choose the location, `--out` takes a **file path**, not a directory (a directory is rejected). Missing folders are created.
 
 ```bash
-mkdir -p downloads
-nustuf buy <release-url> --locus --out downloads/purchase.bin
+nustuf buy <release-url> --locus --out ~/Documents/purchase.bin
 ```
 
 ## How it works
