@@ -1,6 +1,6 @@
 {
   "name": "nustuf",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Agent-native content marketplace — discover, buy, and publish with Locus payments",
   "type": "module",
   "main": "src/index.js",
