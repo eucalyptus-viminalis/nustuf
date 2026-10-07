@@ -114,6 +114,20 @@ Opens a local web UI showing live announcements from the on-chain registry. No w
 - `--port <port>` changes the local port (default 3000, or the `PORT` env var).
 - `--public` also exposes the feed at a public URL, using Tailscale Funnel by default (stable URL) or `--tunnel cloudflared` (temporary URL). Without it, the feed stays on localhost.
 
+### Wallets
+
+```bash
+nustuf wallet create --role buyer --testnet   # prints an address; send USDC there
+nustuf wallet create --role seller --testnet  # prints an address; send a little ETH there
+nustuf wallet show                            # addresses and USDC/ETH balances
+```
+
+nustuf generates the wallet, so you only send funds to its public address from a wallet you already use. Keys are stored in `~/.nustuf/wallets/<role>.key` (mode 600). These are hot wallets: keep balances small. `create` never overwrites an existing wallet, and `export` prints the key only in an interactive terminal.
+
+- **buyer:** `nustuf buy` pays from it when you pass no `--locus` or `--buyer-private-key-file`. It needs USDC on the seller's network and no ETH.
+- **seller:** `--announce` signs with it when there is no `--private-key-file` or `DEPLOYER_PRIVATE_KEY`. It needs a little ETH for gas, and its address works as `--pay-to`.
+- Network: `--network <caip2>` or `--testnet` (default: your configured chain, else Base mainnet). It only affects the funding hint and the balances shown.
+
 ## Configuration
 
 Set these as environment variables or in a `.env` file.
@@ -169,6 +183,7 @@ nustuf feed-ui    Browse live releases in the browser
 nustuf announce   Register a drop on-chain
 nustuf host       Multi-host server
 nustuf config     Manage configuration
+nustuf wallet     Generate and check a buyer or seller wallet
 ```
 
 Run `nustuf --help` or `nustuf <command> --help` for details.

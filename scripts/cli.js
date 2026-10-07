@@ -39,6 +39,7 @@ function printHelp() {
   console.log("  nustuf buy <url> [options]                Purchase content");
   console.log("  nustuf host --config <path> [options]     Multi-host server");
   console.log("  nustuf config [show|--write-env]          Manage configuration");
+  console.log("  nustuf wallet <create|show|export>        Generate and check a buyer or seller wallet");
   console.log("  nustuf version                            Show version");
   console.log("");
   console.log(outUi.section("Publish Options"));
@@ -127,6 +128,8 @@ if (sub === "publish") {
   runSubcommand("host.js", process.argv.slice(3));
 } else if (sub === "config") {
   runSubcommand("config.js", process.argv.slice(3));
+} else if (sub === "wallet") {
+  runSubcommand("wallet.js", process.argv.slice(3));
 } else if (sub === "leak") {
   // Backward compatibility
   runSubcommand("publish.js", process.argv.slice(3));

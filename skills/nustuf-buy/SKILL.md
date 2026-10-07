@@ -52,6 +52,17 @@ export LOCUS_API_KEY=claw_your_key_here
 curl -s -H "x-api-key: $LOCUS_API_KEY" https://beta-api.paywithlocus.com/api/pay/balance
 ```
 
+### Alternative: no Locus, use a nustuf-generated wallet
+
+Any wallet with USDC on the seller's network can pay, so a Locus account is optional. Check for a wallet, and create one if there is none:
+
+```bash
+nustuf wallet show --role buyer
+nustuf wallet create --role buyer --network eip155:8453   # or eip155:84532 for Base Sepolia
+```
+
+Tell the user to send USDC on that network to the printed address (paying needs no ETH). `nustuf wallet show --role buyer` shows the balance so you can tell when it arrives. `nustuf buy <url>` then pays from this wallet automatically when you don't pass `--locus` or `--buyer-private-key-file`. It is a hot wallet, so suggest small amounts. Never run `nustuf wallet export` or ask the user to paste a private key into chat.
+
 ## Step 2: Find content to buy
 
 If you have a nustuf release URL (promo page), you're ready to buy. Otherwise, discover releases:

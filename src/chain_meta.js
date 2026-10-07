@@ -50,6 +50,12 @@ export function resolveSupportedChain(chainIdString) {
   };
 }
 
+// Circle-issued USDC contract addresses on the supported chains
+export const USDC_ADDRESSES = {
+  "eip155:8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "eip155:84532": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+};
+
 export function formatChainDisplayName(chainIdString) {
   return resolveSupportedChain(chainIdString).name;
 }

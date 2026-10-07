@@ -11,6 +11,7 @@ import { createWalletClient, createPublicClient, http, parseUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 import { createUi } from "./ui.js";
+import { readWalletKey } from "./wallet_store.js";
 
 const outUi = createUi(process.stdout);
 const errUi = createUi(process.stderr);
@@ -109,6 +110,10 @@ export function loadPrivateKey(args) {
     return key.startsWith("0x") ? key : `0x${key}`;
   }
   
+  // Check the wallet `nustuf wallet create --role seller` generated
+  const walletKey = readWalletKey("seller");
+  if (walletKey) return walletKey;
+
   // Check .locus.json
   const locusPath = path.resolve(process.cwd(), ".locus.json");
   if (fs.existsSync(locusPath)) {
@@ -120,7 +125,7 @@ export function loadPrivateKey(args) {
     } catch {}
   }
   
-  throw new Error("No private key found. Use --private-key-file or set DEPLOYER_PRIVATE_KEY");
+  throw new Error("No private key found. Use --private-key-file, set DEPLOYER_PRIVATE_KEY, or run `nustuf wallet create --role seller` and fund it");
 }
 
 export async function announceRelease(options) {

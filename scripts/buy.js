@@ -11,6 +11,7 @@ import {
 } from "@x402/core/http";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
+import { getWalletAddress, readWalletKey } from "./wallet_store.js";
 import { DOWNLOAD_CODE_HEADER } from "../src/download_code.js";
 import { createUi } from "./ui.js";
 
@@ -678,8 +679,16 @@ async function main() {
     }
     
     if (!buyerPk) {
+      // Fall back to the wallet `nustuf wallet create --role buyer` generated, if any
+      buyerPk = readWalletKey("buyer");
+      if (buyerPk) {
+        console.log(outUi.statusLine("info", `Paying from nustuf buyer wallet ${getWalletAddress("buyer")}`));
+      }
+    }
+
+    if (!buyerPk) {
       throw new Error(
-        "Payment required. Use --locus (recommended) or --buyer-private-key-file <path>"
+        "Payment required. Use --locus, --buyer-private-key-file <path>, or create a wallet with `nustuf wallet create --role buyer` and fund it"
       );
     }
 

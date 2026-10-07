@@ -34,7 +34,7 @@ Publish content behind an x402 payment gate and announce the release on-chain so
 
 - `nustuf` installed from GitHub (see the install block above) and `npm link`ed or installed globally.
 - Tailscale installed and logged in for `--public` (see "Tailscale setup" in the README: MagicDNS, HTTPS certificates and Funnel must be enabled). Without Tailscale, add `--tunnel cloudflared` for a temporary URL.
-- For `--announce`: `DEPLOYER_PRIVATE_KEY` (or `--private-key-file`), a dedicated low-value key that pays a little gas.
+- For `--announce`: a dedicated low-value key that pays a little gas. Easiest is a nustuf-generated wallet: run `nustuf wallet show --role seller`, and if none exists run `nustuf wallet create --role seller --network <caip2>` and tell the user to send a little ETH on that network to the printed address. `--announce` uses it automatically. Alternatives: `DEPLOYER_PRIVATE_KEY` or `--private-key-file`. The seller wallet's address also works as `--pay-to`.
 - For mainnet payments: CDP keys (see the README). To try without them, sell on Base Sepolia with `--network eip155:84532` and announce with `--testnet`.
 
 ## Commands
@@ -108,6 +108,7 @@ Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too 
 4. Block sensitive paths (~/.ssh, ~/.aws, etc.)
 5. Warn user that on-chain announcement is permanent
 6. Do not print `DEPLOYER_PRIVATE_KEY`, API keys or `.env` contents
+7. Never run `nustuf wallet export` and never ask the user to paste a private key into chat; funding a generated wallet only needs its public address
 
 ## Required inputs (ALWAYS ask for these — never assume defaults)
 
