@@ -195,9 +195,14 @@ export function pickFunnelPublicPort() {
   } catch {
     return FUNNEL_PUBLIC_PORTS[0];
   }
+  // Background funnels report AllowFunnel at the top level; foreground ones (what nustuf starts)
+  // report it under Foreground.<session-id>.
+  const sources = [cfg, ...Object.values(cfg?.Foreground || {})];
   const taken = new Set();
-  for (const hostPort of Object.keys(cfg?.AllowFunnel || {})) {
-    if (cfg.AllowFunnel[hostPort]) taken.add(Number(hostPort.split(":").pop()));
+  for (const source of sources) {
+    for (const hostPort of Object.keys(source?.AllowFunnel || {})) {
+      if (source.AllowFunnel[hostPort]) taken.add(Number(hostPort.split(":").pop()));
+    }
   }
   return FUNNEL_PUBLIC_PORTS.find((p) => !taken.has(p)) ?? null;
 }

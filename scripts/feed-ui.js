@@ -4,11 +4,31 @@ import { createServer } from "http";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
+import { normalizeTunnelProvider, pickFunnelPublicPort, startTunnel, tunnelPreflight } from "./tunnel.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = parseInt(process.env.PORT || "3000", 10);
-const NO_TUNNEL = process.argv.includes("--no-tunnel");
+const argv = process.argv.slice(2);
+
+function flagValue(name) {
+  const i = argv.indexOf(name);
+  return i === -1 ? undefined : argv[i + 1];
+}
+
+const PORT = parseInt(flagValue("--port") || process.env.PORT || "3000", 10);
+const PUBLIC = argv.includes("--public");
+const TESTNET = argv.includes("--testnet");
+const PAGE_PATH = TESTNET ? "/?network=sepolia" : "/";
+
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error(`Invalid --port "${flagValue("--port") ?? process.env.PORT}". Use a number from 1 to 65535.`);
+  process.exit(1);
+}
+
+const tunnelProvider = normalizeTunnelProvider(flagValue("--tunnel"));
+if (!tunnelProvider) {
+  console.error(`Unknown --tunnel value "${flagValue("--tunnel")}". Use tailscale or cloudflared.`);
+  process.exit(1);
+}
 
 const feedHtml = readFileSync(resolve(__dirname, "../public/feed.html"), "utf-8");
 
@@ -26,46 +46,58 @@ const server = createServer((req, res) => {
   }
 });
 
+let tunnelProc = null;
+let shuttingDown = false;
+
+// Same providers as `nustuf publish --public`. Tailscale Funnel gives a stable URL and picks a
+// public port no other Funnel is using; cloudflared gives a temporary quick-tunnel URL.
+function openTunnel() {
+  const preflight = tunnelPreflight(tunnelProvider);
+  if (!preflight.ok) {
+    console.log(`\nNo public URL: ${preflight.reason}`);
+    console.log("Use --tunnel cloudflared for a temporary URL. The feed is still available locally.");
+    return null;
+  }
+
+  let publicPort = 443;
+  if (tunnelProvider === "tailscale") {
+    publicPort = pickFunnelPublicPort();
+    if (publicPort === null) {
+      console.log("\nNo public URL: Funnel public ports 443, 8443 and 10000 are all in use.");
+      return null;
+    }
+  }
+
+  const { proc } = startTunnel({
+    provider: tunnelProvider,
+    port: PORT,
+    hostname: preflight.hostname,
+    publicPort,
+    onUrl: (origin) => {
+      console.log(`\nPublic URL: ${origin}${PAGE_PATH}`);
+      console.log("Share this link to let anyone browse the live feed.");
+    },
+    onFatal: (detail) => {
+      console.log(`\nPublic tunnel failed: ${detail}`);
+    },
+  });
+  proc.on("exit", (code, signal) => {
+    if (!shuttingDown) console.log(`Tunnel exited (${signal || `code ${code}`}).`);
+  });
+  return proc;
+}
+
+function shutdown() {
+  shuttingDown = true;
+  tunnelProc?.kill("SIGTERM");
+  process.exit();
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
 server.listen(PORT, () => {
-  console.log(`nustuf feed UI running at http://localhost:${PORT}`);
-  console.log(`Browse live releases from the on-chain registry.`);
+  console.log(`nustuf feed UI running at http://localhost:${PORT}${PAGE_PATH}`);
+  console.log(`Browse live releases from the on-chain registry${TESTNET ? " (Base Sepolia)" : ""}.`);
 
-  if (NO_TUNNEL) return;
-
-  // Start cloudflare tunnel
-  const tunnel = spawn("cloudflared", ["tunnel", "--url", `http://localhost:${PORT}`], {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  const handleOutput = (data) => {
-    const line = data.toString();
-    const match = line.match(/https:\/\/[^\s]+\.trycloudflare\.com/);
-    if (match) {
-      console.log(`\nPublic URL: ${match[0]}`);
-      console.log(`Share this link to let anyone browse the live feed.`);
-    }
-  };
-
-  tunnel.stdout.on("data", handleOutput);
-  tunnel.stderr.on("data", handleOutput);
-
-  tunnel.on("error", (err) => {
-    if (err.code === "ENOENT") {
-      console.log("\ncloudflared not found — skipping tunnel. Install from https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/");
-      console.log("Or use --no-tunnel to suppress this message.");
-    }
-  });
-
-  tunnel.on("close", () => {
-    console.log("Tunnel closed.");
-  });
-
-  process.on("SIGINT", () => {
-    tunnel.kill();
-    process.exit();
-  });
-  process.on("SIGTERM", () => {
-    tunnel.kill();
-    process.exit();
-  });
+  if (PUBLIC) tunnelProc = openTunnel();
 });

@@ -110,6 +110,10 @@ nustuf feed-ui
 
 Opens a local web UI showing live announcements from the on-chain registry. No wallet or config needed.
 
+- `--testnet` reads Base Sepolia instead of Base mainnet.
+- `--port <port>` changes the local port (default 3000, or the `PORT` env var).
+- `--public` also exposes the feed at a public URL, using Tailscale Funnel by default (stable URL) or `--tunnel cloudflared` (temporary URL). Without it, the feed stays on localhost.
+
 ## Configuration
 
 Set these as environment variables or in a `.env` file.
