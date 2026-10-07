@@ -11,10 +11,9 @@ metadata:
       env:
       bins: ["nustuf"]
     install:
-      - kind: node
-        package: nustuf
-        bins: ["nustuf"]
-        label: "Install nustuf via npm"
+      - kind: shell
+        command: "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g ."
+        label: "Install nustuf CLI from GitHub"
   author: eucalyptus-viminalis
 ---
 

@@ -11,10 +11,9 @@ metadata:
       env:
       bins: ["nustuf"]
     install:
-      - kind: node
-        package: nustuf
-        bins: ["nustuf"]
-        label: "Install nustuf via npm"
+      - kind: shell
+        command: "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g ."
+        label: "Install nustuf CLI from GitHub"
   author: eucalyptus-viminalis
 ---
 
@@ -27,37 +26,38 @@ Publish content behind an x402 payment gate and announce the release on-chain so
 ## The publish flow
 
 1. User provides file, price, and sale window
-2. nustuf creates x402 payment gate
-3. Release metadata is announced on Base L2 registry
+2. nustuf creates the x402 payment gate and a stable public URL (Tailscale Funnel)
+3. With `--announce`, the release is written to the Base L2 registry once the public URL is live
 4. Other agents can now discover and buy the release
+
+## Prerequisites
+
+- `nustuf` installed from GitHub (see the install block above) and `npm link`ed or installed globally.
+- Tailscale installed and logged in for `--public` (see "Tailscale setup" in the README: MagicDNS, HTTPS certificates and Funnel must be enabled). Without Tailscale, add `--tunnel cloudflared` for a temporary URL.
+- For `--announce`: `DEPLOYER_PRIVATE_KEY` (or `--private-key-file`), a dedicated low-value key that pays a little gas.
+- For mainnet payments: CDP keys (see the README). To try without them, sell on Base Sepolia with `--network eip155:84532` and announce with `--testnet`.
 
 ## Commands
 
-### Publish with on-chain announcement (discoverable)
+### Publish and announce on-chain (discoverable)
 
-If the user wants the release to be discoverable by other agents on-chain, use `nustuf announce` **after** publishing. This writes the release metadata to the NustufRegistry contract on Base (or Base Sepolia for testnet).
+One command publishes the file behind the paywall, exposes it, and lists it in the registry. Non-interactive runs need the explicit consent phrase for public exposure.
 
 ```bash
-# Step 1: Publish (starts x402 gate + tunnel)
 nustuf publish \
   --file ./track.mp3 \
   --price 0.50 \
   --window 24h \
   --pay-to 0xYOUR_ADDRESS \
+  --public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE \
+  --announce \
   --title "My New Track" \
   --description "Exclusive release"
-
-# Step 2: Announce on-chain (after publish gives you the tunnel URL)
-nustuf announce \
-  --url <tunnel-url-from-publish> \
-  --price 0.50 \
-  --expires <unix-timestamp> \
-  --title "My New Track" \
-  --description "Exclusive release" \
-  --file ./track.mp3
 ```
 
-The `--file` flag on announce computes a content hash for on-chain verification. The `--expires` timestamp should match the sale window end time.
+Add `--network eip155:84532 --testnet` to sell and list on Base Sepolia. The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file.
+
+If the announcement fails, the drop stays live and nustuf prints a `nustuf announce --url ... --price ... --expires ... --title ...` command. Run that by hand to retry. nustuf announces a drop once, on its first public URL; if the URL changes (a cloudflared restart, a renamed machine or tailnet) it warns and prints the command instead of writing a second listing.
 
 ### Publish without announcement (private)
 
@@ -70,7 +70,7 @@ nustuf publish \
   --private
 ```
 
-### Expose publicly (with consent)
+### Expose publicly without listing it on-chain
 
 ```bash
 nustuf publish \
@@ -78,7 +78,7 @@ nustuf publish \
   --price 0.50 \
   --window 24h \
   --pay-to 0xYOUR_ADDRESS \
-  --public
+  --public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE
 ```
 
 ## ⚠️ Known issues
@@ -95,7 +95,7 @@ kill -9 $(lsof -ti:4021) 2>/dev/null || true
 sleep 2
 ```
 
-### Cloudflare tunnel rate limiting
+### Tunnels
 `--public` uses Tailscale Funnel by default (needs Tailscale installed and logged in; URL is `https://<machine>.<tailnet>.ts.net` and stable across restarts). Use `--tunnel cloudflared` for a temporary account-free URL.
 
 Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too frequently. If the tunnel URL doesn't load, wait 30-60 seconds before retrying.
@@ -107,6 +107,7 @@ Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too 
 3. Reject symlink paths
 4. Block sensitive paths (~/.ssh, ~/.aws, etc.)
 5. Warn user that on-chain announcement is permanent
+6. Do not print `DEPLOYER_PRIVATE_KEY`, API keys or `.env` contents
 
 ## Required inputs (ALWAYS ask for these — never assume defaults)
 
@@ -141,7 +142,7 @@ This makes the release discoverable by any agent running `nustuf-discover`.
   "success": true,
   "release": {
     "id": "0x...",
-    "url": "https://xxx.trycloudflare.com/",
+    "url": "https://<machine>.<tailnet>.ts.net/",
     "price": "0.50",
     "expiresAt": "2026-03-18T07:00:00Z",
     "registryTx": "https://basescan.org/tx/0x..."
