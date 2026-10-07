@@ -32,7 +32,7 @@ A full publish, discover and buy run, with terminal output, is in [`demo/termina
 |---|---|---|
 | Node.js 18+ and npm | everything | nustuf is not on the npm registry yet, so install from source (below). |
 | [Tailscale](https://tailscale.com/download) | `publish --public` (selling) | Free Personal plan is enough. Install it, run `tailscale up`, then in the [admin console](https://login.tailscale.com/admin) enable **MagicDNS** and **HTTPS certificates**, and allow **Funnel** (the first `publish --public` run prints an enable link if it is still off). This gives your drop a stable `https://<machine>.<tailnet>.ts.net` URL. No Tailscale? Use `--tunnel cloudflared` (install [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)) for a temporary URL that changes on restart. |
-| A Locus wallet | `buy` | See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). Buying and discovering need no Tailscale. |
+| A wallet with USDC (nustuf-generated, or Locus) | `buy` | Run `nustuf wallet create --role buyer` and fund it (see Wallets), or use a Locus wallet via [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). Buying and discovering need no Tailscale. |
 | CDP API keys | mainnet payments | See Configuration. Skip by selling on Base Sepolia. |
 
 ### Install
@@ -92,15 +92,16 @@ The listing uses the sale price, expires when the sale window ends, and includes
 nustuf discover --active
 ```
 
-Queries the registry for live releases. Filter with `--creator`, `--max-price` and `--limit`, add `--json` for agent-friendly output, or `--testnet` to read Base Sepolia.
+Queries the registry for live releases. It reads Base mainnet by default, so testnet drops only show up with `--testnet` (Base Sepolia). Filter with `--creator`, `--max-price` and `--limit`, and add `--json` for agent-friendly output. In `--json`, `price` is rounded to 2 decimals; use `priceRaw` (USDC base units) for sub-cent prices.
 
 ### Buy something
 
 ```bash
-nustuf buy https://some-nustuf-url.com/ --locus
+nustuf buy https://some-nustuf-url.com/            # pays from your nustuf buyer wallet
+nustuf buy https://some-nustuf-url.com/ --locus    # or pay with a Locus wallet
 ```
 
-Pays with your Locus wallet and downloads the file.
+Pays and downloads the file. With no flags it uses the wallet from `nustuf wallet create --role buyer`.
 
 Files are saved to `~/Downloads/nustuf/` by default (set `NUSTUF_DOWNLOAD_DIR` to change it, or pass `--out <file>`). nustuf never overwrites an existing file; the new one is saved as `name (1).ext`, and the full path is printed.
 

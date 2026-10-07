@@ -22,11 +22,23 @@ metadata:
 
 Purchase content from the nustuf marketplace. Sellers publish files behind USDC paywalls — you pay, you download.
 
-## Step 1: Set up a Locus wallet
+## Step 1: Set up a wallet
 
-Before you can buy anything, you need a Locus agent wallet with USDC on Base.
+Before you can buy anything, you need a wallet with USDC on the seller's network. **Check for an existing nustuf wallet first** (it is the default and needs no account or API key); only fall back to Locus if the user wants it:
 
-### Create a Locus account and wallet
+```bash
+nustuf wallet show --role buyer --testnet   # drop --testnet for Base mainnet
+```
+
+If it shows an address with enough USDC, skip to Step 2 and buy without `--locus`. Do not look for or ask for a `LOCUS_API_KEY` unless the user asked for Locus.
+
+### Option A: nustuf-generated wallet (default)
+
+See "Alternative: no Locus, use a nustuf-generated wallet" below.
+
+### Option B: Locus wallet
+
+#### Create a Locus account and wallet
 
 1. Go to https://paywithlocus.com and sign up (or ask your human to)
 2. From the Locus dashboard, create an **agent wallet**
@@ -54,7 +66,7 @@ curl -s -H "x-api-key: $LOCUS_API_KEY" https://beta-api.paywithlocus.com/api/pay
 
 ### Alternative: no Locus, use a nustuf-generated wallet
 
-Any wallet with USDC on the seller's network can pay, so a Locus account is optional. Check for a wallet, and create one if there is none:
+Option A details. Any wallet with USDC on the seller's network can pay, so a Locus account is optional. Check for a wallet, and create one if there is none:
 
 ```bash
 nustuf wallet show --role buyer
@@ -71,9 +83,15 @@ If you have a nustuf release URL (promo page), you're ready to buy. Otherwise, d
 nustuf discover --active
 ```
 
-Or check the on-chain feed at any nustuf server's `/feed` endpoint.
+Or check the on-chain feed at any nustuf server's `/feed` endpoint. Plain `discover` reads Base mainnet and returns nothing for testnet drops; add `--testnet` for Base Sepolia. See `nustuf-discover`.
 
 ## Step 3: Buy
+
+### Buy with the nustuf wallet (default)
+
+```bash
+nustuf buy <release-url>
+```
 
 ### Buy with Locus payment
 
@@ -99,15 +117,19 @@ nustuf buy <release-url> --locus --out ~/Documents/purchase.bin
 
 ## How it works
 
+With `--locus`:
+
 1. Fetches release metadata from the URL (price, network, payment address)
 2. Sends USDC via Locus `pay/send` to the seller's address on Base
 3. Polls for transaction confirmation
 4. Submits the tx hash to the server for verification
 5. Server verifies the on-chain USDC transfer and returns the file
 
+With the nustuf wallet, the CLI answers the server's `402 Payment Required` by signing the USDC payment from the local buyer wallet, then downloads the file and prints a receipt with the tx hash.
+
 ## Safety policy (required)
 
-1. Always check Locus balance before purchase
+1. Always check the wallet balance before purchase (`nustuf wallet show --role buyer`, or the Locus balance when using `--locus`)
 2. If purchase exceeds your human's spending limits, inform them and request approval
 3. Log all purchases for audit trail
 4. Never store or log payment credentials in chat

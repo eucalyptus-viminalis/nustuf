@@ -25,10 +25,15 @@ Query the nustuf on-chain registry to discover live content releases. Help users
 
 ## Commands
 
+### Pick the network first
+
+`discover` reads **Base mainnet** by default. Testnet drops only appear with `--testnet` (Base Sepolia). An empty mainnet result ("No releases found") does not mean there are no drops: retry with `--testnet`. Use `--json` for machine-readable output.
+
 ### List active releases
 
 ```bash
 nustuf discover --active
+nustuf discover --testnet --json
 ```
 
 ### Filter by creator
@@ -43,32 +48,36 @@ nustuf discover --creator 0x1234...
 nustuf discover --max-price 1.00
 ```
 
-### Get release details
+### Limit results
 
 ```bash
-nustuf discover --id <release-id>
+nustuf discover --limit 10
 ```
 
 ## Response format
 
-The discover command returns JSON with release metadata:
+`discover --json` returns release metadata:
 
 ```json
 {
   "releases": [
     {
       "id": "0x...",
-      "url": "https://...",
-      "price": "0.50",
       "creator": "0x...",
-      "contentHash": "0x...",
-      "expiresAt": "2026-03-18T12:00:00Z",
+      "url": "https://...",
+      "price": "0.50 USDC",
+      "priceRaw": "500000",
       "title": "...",
-      "description": "..."
+      "description": "...",
+      "expiresAt": "2026-03-18T12:00:00.000Z",
+      "timeLeft": "9h left",
+      "active": true
     }
   ]
 }
 ```
+
+`price` is rounded to 2 decimals, so sub-cent prices show as `0.00 USDC`. Use `priceRaw` (USDC base units, 6 decimals; `500` = 0.0005 USDC) for the real price. To pick the drop that expires first, sort by `expiresAt`.
 
 ## Recommendations
 
@@ -82,5 +91,6 @@ When a user asks "what's new?" or "any nustuf?", query active releases and recom
 After discovering a release, use `nustuf-buy` to purchase:
 
 ```bash
-nustuf buy <release-url> --locus
+nustuf buy <release-url>            # pays from the nustuf buyer wallet
+nustuf buy <release-url> --locus    # or pay via Locus
 ```
