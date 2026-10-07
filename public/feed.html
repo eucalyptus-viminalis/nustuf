@@ -105,8 +105,14 @@
 
 <script type="module">
   const REGISTRY = '0x134597d9Cc6270571C2b8245c4235f7838C0d65D';
-  const RPC = 'https://mainnet.base.org';
-  const SCAN = 'https://basescan.org';
+  // Base mainnet by default; add ?network=sepolia (or ?testnet) for Base Sepolia
+  const params = new URLSearchParams(location.search);
+  const TESTNET = params.get('network') === 'sepolia' || params.has('testnet');
+  const NETWORK_LABEL = TESTNET ? 'base sepolia' : 'base mainnet';
+  const RPC = TESTNET ? 'https://sepolia.base.org' : 'https://mainnet.base.org';
+  const SCAN = TESTNET ? 'https://sepolia.basescan.org' : 'https://basescan.org';
+  const LOG_CHUNK = 500;
+  const LOOKBACK_BLOCKS = TESTNET ? 10000 : 2000; // ~5.5h on Sepolia, ~1h on mainnet (2s blocks)
   
   // ReleaseAnnounced event signature
   const EVENT_SIG = '0x' + await sha256('ReleaseAnnounced(bytes32,address,string,uint256,uint256)');
@@ -154,16 +160,19 @@
   
   // Get logs for ReleaseAnnounced events
   async function getAnnouncementLogs(fromBlock = null) {
-    if (!fromBlock) {
-      const latest = await rpcCall('eth_blockNumber', []);
-      fromBlock = '0x' + Math.max(0, Number(BigInt(latest)) - 2000).toString(16);
+    const latest = Number(BigInt(await rpcCall('eth_blockNumber', [])));
+    const start = fromBlock ? Number(BigInt(fromBlock)) : Math.max(0, latest - LOOKBACK_BLOCKS);
+    // Public RPCs cap eth_getLogs ranges (Base Sepolia: 500 blocks), so query in chunks
+    const ranges = [];
+    for (let from = start; from <= latest; from += LOG_CHUNK) {
+      ranges.push([from, Math.min(from + LOG_CHUNK - 1, latest)]);
     }
-    const logs = await rpcCall('eth_getLogs', [{
+    const chunks = await Promise.all(ranges.map(([from, to]) => rpcCall('eth_getLogs', [{
       address: REGISTRY,
-      fromBlock,
-      toBlock: 'latest',
-    }]);
-    return logs;
+      fromBlock: '0x' + from.toString(16),
+      toBlock: '0x' + to.toString(16),
+    }])));
+    return chunks.flat();
   }
   
   // Decode uint256 from hex
@@ -298,9 +307,12 @@
   
   // Initial load
   async function loadAll() {
+    // Poll from the block we loaded at, even when the feed starts empty
+    let head = null;
     try {
+      head = await rpcCall('eth_blockNumber', []);
       const logs = await getAnnouncementLogs();
-      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · last 2000 blocks · base mainnet`;
+      statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · last ${LOOKBACK_BLOCKS} blocks · ${NETWORK_LABEL}`;
       statusEl.className = 'status live';
       
       // Render oldest first so newest end up on top
@@ -312,30 +324,31 @@
         emptyEl.style.display = 'block';
       }
       
-      return logs.length > 0 ? logs[logs.length - 1].blockNumber : 'latest';
+      return head;
     } catch (e) {
       statusEl.textContent = 'error: ' + e.message;
       statusEl.className = 'status error';
-      return 'latest';
+      return head; // null if even the head lookup failed; poll() then uses the default lookback
     }
   }
   
   // Poll for new events
   async function poll(fromBlock) {
     try {
-      const nextBlock = '0x' + (Number(BigInt(fromBlock)) + 1).toString(16);
+      const nextBlock = fromBlock ? '0x' + (Number(BigInt(fromBlock)) + 1).toString(16) : null;
+      const head = await rpcCall('eth_blockNumber', []);
       const logs = await getAnnouncementLogs(nextBlock);
-      
+
       for (const log of logs) {
         await renderRelease(log, true);
       }
-      
+
       if (logs.length > 0) {
         const total = seenIds.size;
-        statusEl.textContent = `connected · ${total} announcement${total !== 1 ? 's' : ''} · base mainnet`;
-        return logs[logs.length - 1].blockNumber;
+        statusEl.textContent = `connected · ${total} announcement${total !== 1 ? 's' : ''} · ${NETWORK_LABEL}`;
+        statusEl.className = 'status live';
       }
-      return fromBlock;
+      return head; // advance so each poll only scans new blocks
     } catch {
       return fromBlock;
     }

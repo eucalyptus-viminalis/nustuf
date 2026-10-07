@@ -111,7 +111,9 @@ if (sub === "--version" || sub === "-v" || sub === "version") {
 
 if (sub === "publish") {
   // Use publish.js for publish (will rebrand later)
-  runSubcommand("publish.js", ["--wizard", ...process.argv.slice(3)]);
+  // The wizard needs a TTY; non-interactive runs (agents, CI) use direct flags.
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  runSubcommand("publish.js", [...(interactive ? ["--wizard"] : []), ...process.argv.slice(3)]);
 } else if (sub === "buy") {
   runSubcommand("buy.js", process.argv.slice(3));
 } else if (sub === "discover") {

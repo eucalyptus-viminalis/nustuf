@@ -13,10 +13,11 @@ const NO_TUNNEL = process.argv.includes("--no-tunnel");
 const feedHtml = readFileSync(resolve(__dirname, "../public/feed.html"), "utf-8");
 
 const server = createServer((req, res) => {
-  if (req.url === "/" || req.url === "/feed") {
+  const pathname = new URL(req.url, "http://localhost").pathname;
+  if (pathname === "/" || pathname === "/feed") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(feedHtml);
-  } else if (req.url === "/health") {
+  } else if (pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
   } else {
