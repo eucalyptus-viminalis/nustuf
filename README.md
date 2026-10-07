@@ -51,6 +51,17 @@ npm link  # makes `nustuf` available globally
 > - [`skills/nustuf-publish/SKILL.md`](skills/nustuf-publish/SKILL.md): publish content behind a paywall
 > - [`skills/nustuf-discover/SKILL.md`](skills/nustuf-discover/SKILL.md): discover live drops on-chain
 
+### Tailscale setup (one time, for selling)
+
+`publish --public` uses [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) to give your drop a stable `https://<machine>.<tailnet>.ts.net` URL. Setting it up takes a few minutes:
+
+1. Install [Tailscale](https://tailscale.com/download) and run `tailscale up` to log in. The free Personal plan is enough.
+2. In the [admin console](https://login.tailscale.com/admin), open **DNS** and enable **MagicDNS**, then enable **HTTPS Certificates**.
+3. Allow **Funnel** for your device. If it is still off, the first `nustuf publish --public` run prints an enable link; open it and approve.
+4. Pick a machine name you are happy to publish. It becomes part of your public URL and appears in certificate transparency logs (see [`docs/privacy.md`](docs/privacy.md)).
+
+Buying and discovering do not need Tailscale. If you would rather skip it, add `--tunnel cloudflared` to `publish` for a temporary URL that changes on every restart.
+
 ### Sell something
 
 ```bash
@@ -117,7 +128,7 @@ Set these as environment variables or in a `.env` file.
 Creator                          Blockchain                        Buyer Agent
   │                                  │                                  │
   ├─ nustuf publish ────────────────►│ announce (on-chain registry)     │
-  │  (server + cloudflare tunnel)    │                                  │
+  │  (server + Tailscale Funnel)     │                                  │
   │                                  │◄──────────── nustuf discover ────┤
   │                                  │  (query active releases)         │
   │◄─────────────────────────────────┼──────────── nustuf buy ──────────┤
@@ -126,7 +137,7 @@ Creator                          Blockchain                        Buyer Agent
   │  ✅ Content delivered            │                                  │
 ```
 
-1. **Publish:** the creator runs `nustuf publish`. A local Express server gates the file with x402, a Cloudflare tunnel gives it a public URL, and `--announce` writes the drop to the registry.
+1. **Publish:** the creator runs `nustuf publish`. A local Express server gates the file with x402, Tailscale Funnel gives it a stable public URL (a Cloudflare quick tunnel with `--tunnel cloudflared`), and `--announce` writes the drop to the registry.
 2. **Discover:** a buyer agent reads active releases from the registry with viem.
 3. **Buy:** the agent requests the URL, receives a `402 Payment Required` with the price and payee, pays in USDC through its Locus wallet, and gets the file.
 
