@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import enquirer from "enquirer";
 import { isAddress } from "viem";
@@ -28,6 +28,14 @@ import {
   isValidDownloadCodeHash,
 } from "../src/download_code.js";
 import { createUi } from "./ui.js";
+import {
+  DEFAULT_TUNNEL_PROVIDER,
+  normalizeTunnelProvider,
+  pickFunnelPublicPort,
+  printTunnelInstallHelp,
+  startTunnel,
+  tunnelPreflight,
+} from "./tunnel.js";
 import { announceRelease, computeFileHash, loadPrivateKey, registryUsesTestnet } from "./announce.js";
 const { Select, Input } = enquirer;
 const HiddenCodePrompt = enquirer["Pass" + "word"];
@@ -65,8 +73,8 @@ function usageAndExit(code = 1, hint = "") {
   console.log("");
   console.log(outUi.section("Usage"));
   console.log(`  nustuf publish [--file <path>] [--access-mode <${ACCESS_MODE_VALUES.join("|")}>]`);
-  console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
-  console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
+  console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--tunnel <tailscale|cloudflared>] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
+  console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--tunnel <tailscale|cloudflared>] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
   console.log("");
   console.log(outUi.section("On-chain announce"));
   console.log("  --announce                 List the drop in the on-chain registry once the public URL is live (needs --public)");
@@ -76,7 +84,8 @@ function usageAndExit(code = 1, hint = "") {
   console.log("  --testnet                  Announce on Base Sepolia (default: Base mainnet, costs gas)");
   console.log("");
   console.log(outUi.section("Notes"));
-  console.log("  --public requires cloudflared (Cloudflare Tunnel) installed.");
+  console.log("  --public uses Tailscale Funnel by default (stable https://<host>.ts.net URL; needs Tailscale installed and logged in).");
+  console.log("  --tunnel cloudflared uses a temporary Cloudflare quick tunnel instead (no account, URL changes on restart).");
   console.log("");
   console.log(outUi.section("Examples"));
   console.log("  nustuf publish");
@@ -534,7 +543,7 @@ async function runPublishWizard({ args, configDefaults }) {
     }
 
     state.publicEnabled = await promptYesNo(
-      "Expose this publish run via temporary Cloudflare tunnel (--public)?",
+      "Expose this publish run on a public URL via Tailscale Funnel (--public)?",
       state.publicEnabled,
     );
 
@@ -765,36 +774,6 @@ function resolveOgImageInput(value) {
   }
 
   return { ogImageUrl: "", ogImagePath: localPath };
-}
-
-function cloudflaredPreflight() {
-  const probe = spawnSync("cloudflared", ["--version"], { stdio: "ignore" });
-  if (!probe.error && probe.status === 0) return { ok: true };
-
-  const missing = probe.error?.code === "ENOENT";
-  return {
-    ok: false,
-    missing,
-    reason: missing
-      ? "cloudflared is not installed or not on PATH."
-      : `cloudflared check failed (status=${probe.status ?? "n/a"}).`,
-  };
-}
-
-function printCloudflaredInstallHelp(localOnlyCmd) {
-  logError("--public requested, but cloudflared is unavailable.");
-  logWarn("cloudflared is required to create a public tunnel URL.");
-  console.error("");
-  console.error(errUi.section("Install cloudflared"));
-  console.error("  macOS (Homebrew): brew install cloudflared");
-  console.error("  Windows (winget): winget install --id Cloudflare.cloudflared");
-  console.error("  Linux packages/docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/");
-  console.error("");
-  console.error(errUi.section("Retry"));
-  console.error("  nustuf --file <path> --pay-to <address> --public");
-  console.error("");
-  console.error(errUi.section("Local-only Alternative (No Tunnel)"));
-  console.error(`  ${localOnlyCmd}`);
 }
 
 function parseDurationToSeconds(s) {
@@ -1096,28 +1075,18 @@ function runWorkerOnce({
     });
 
     if (args.public) {
-      logInfo("Starting Cloudflare quick tunnel...");
-      tunnelProc = spawn(
-        "cloudflared",
-        ["tunnel", "--url", `http://localhost:${port}`, "--no-autoupdate"],
-        { stdio: ["ignore", "pipe", "pipe"] },
+      const tunnelInfo = args.tunnelInfo || { provider: DEFAULT_TUNNEL_PROVIDER };
+      logInfo(
+        tunnelInfo.provider === "cloudflared"
+          ? "Starting Cloudflare quick tunnel..."
+          : "Starting Tailscale Funnel...",
       );
-
-      tunnelProc.on("error", (err) => {
-        if (err.code === "ENOENT") {
-          tunnelFatalDetail = "cloudflared not found. Install it or re-run without --public.";
-        } else {
-          tunnelFatalDetail = `failed to start tunnel: ${err.message}`;
-        }
-        stopAll("tunnel_fatal");
-      });
-
-      const urlRegex = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/gi;
-      const onData = (chunk) => {
-        const s = chunk.toString("utf8");
-        const m = s.match(urlRegex);
-        if (m && m[0]) {
-          const publicUrl = m[0];
+      const started = startTunnel({
+        provider: tunnelInfo.provider,
+        port,
+        hostname: tunnelInfo.hostname,
+        publicPort: tunnelInfo.publicPort,
+        onUrl: (publicUrl) => {
           const promoUrl = `${publicUrl}/`;
           const buyUrl = `${publicUrl}/download`;
           console.log("");
@@ -1130,13 +1099,13 @@ function runWorkerOnce({
             console.log(line);
           }
           onTunnelUrls?.({ publicUrl, promoUrl, buyUrl });
-          tunnelProc?.stdout?.off("data", onData);
-          tunnelProc?.stderr?.off("data", onData);
-        }
-      };
-
-      tunnelProc.stdout.on("data", onData);
-      tunnelProc.stderr.on("data", onData);
+        },
+        onFatal: (detail, opts = {}) => {
+          tunnelFatalDetail = detail;
+          stopAll(opts.retriable === false ? "tunnel_config" : "tunnel_fatal");
+        },
+      });
+      tunnelProc = started.proc;
 
       tunnelProc.on("exit", (code, signal) => {
         if (stopReason) {
@@ -1163,6 +1132,10 @@ function runWorkerOnce({
       }
       if (stopReason === "deadline_stop") {
         finish({ reason: "normal_window_stop" });
+        return;
+      }
+      if (stopReason === "tunnel_config") {
+        finish({ reason: "config_fatal", detail: tunnelFatalDetail });
         return;
       }
       if (stopReason === "tunnel_fatal") {
@@ -1204,8 +1177,8 @@ async function supervisorMain({
     console.log(line);
   }
 
-  // Announce once, on the first public URL. Quick-tunnel URLs change if the worker restarts,
-  // so later changes only warn instead of writing (and paying gas for) another registry entry.
+  // Announce once, on the first public URL. Funnel URLs are stable across restarts; quick-tunnel
+  // URLs are not, so any later change only warns instead of writing (and paying gas for) another registry entry.
   let announcedUrl = null;
   const announceIfNeeded = (promoUrl) => {
     if (!announcePlan || !promoUrl) return;
@@ -1342,7 +1315,7 @@ async function supervisorMain({
       runState.status = "failed";
       runState.lastExitReason = result.reason || "config_fatal";
       runState = persistRunState(runStatePaths, runState);
-      logError(`Supervisor failed with non-retriable reason: ${runState.lastExitReason}`);
+      logError(`Supervisor failed with non-retriable reason: ${runState.lastExitReason}${result.detail ? `: ${result.detail}` : ""}`);
       return 1;
     }
   } finally {
@@ -1619,10 +1592,25 @@ async function main() {
   }
 
   if (args.public) {
-    const preflight = cloudflaredPreflight();
-    if (!preflight.ok) {
+    const tunnelProvider = normalizeTunnelProvider(args.tunnel);
+    if (!tunnelProvider) {
+      logError(`Unknown --tunnel value "${args.tunnel}". Use tailscale or cloudflared.`);
+      process.exit(1);
+    }
+    const preflight = tunnelPreflight(tunnelProvider);
+    if (preflight.ok) {
+      let publicPort = 443;
+      if (tunnelProvider === "tailscale") {
+        publicPort = pickFunnelPublicPort();
+        if (publicPort === null) {
+          logError("Funnel ports 443, 8443 and 10000 are all in use. Free one with `tailscale funnel reset`.");
+          process.exit(1);
+        }
+      }
+      args.tunnelInfo = { provider: tunnelProvider, hostname: preflight.hostname, publicPort };
+    } else {
       const localOnlyCmd = `nustuf --file ${JSON.stringify(artifactPath)} --access-mode ${accessMode} --price ${prompted.price} --window ${prompted.windowSeconds}s${requiresPayment ? ` --pay-to ${payTo}` : ""} --network ${network}${requiresPayment && confirmationPolicy === "confirmed" ? " --confirmed" : ""}${Number.isFinite(port) && port !== 4021 ? ` --port ${port}` : ""}${effectiveEndedWindowSeconds > 0 ? ` --ended-window-seconds ${effectiveEndedWindowSeconds}` : ""}`;
-      printCloudflaredInstallHelp(localOnlyCmd);
+      printTunnelInstallHelp(tunnelProvider, { logError, logWarn, errUi, localOnlyCmd });
       if (requiresDownloadCode) {
         logWarn("Local mode still requires download-code input or DOWNLOAD_CODE_HASH.");
       }

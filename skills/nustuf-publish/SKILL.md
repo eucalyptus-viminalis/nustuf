@@ -96,6 +96,8 @@ sleep 2
 ```
 
 ### Cloudflare tunnel rate limiting
+`--public` uses Tailscale Funnel by default (needs Tailscale installed and logged in; URL is `https://<machine>.<tailnet>.ts.net` and stable across restarts). Use `--tunnel cloudflared` for a temporary account-free URL.
+
 Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too frequently. If the tunnel URL doesn't load, wait 30-60 seconds before retrying.
 
 ## Safety policy (required)

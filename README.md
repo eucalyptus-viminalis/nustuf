@@ -26,7 +26,18 @@ A full publish, discover and buy run, with terminal output, is in [`demo/termina
 
 ## Quick start
 
-Requirements: Node.js 18 or later, and npm. nustuf is not on the npm registry yet, so install it from source:
+### Prerequisites
+
+| Need | For | Notes |
+|---|---|---|
+| Node.js 18+ and npm | everything | nustuf is not on the npm registry yet, so install from source (below). |
+| [Tailscale](https://tailscale.com/download) | `publish --public` (selling) | Free Personal plan is enough. Install it, run `tailscale up`, then in the [admin console](https://login.tailscale.com/admin) enable **MagicDNS** and **HTTPS certificates**, and allow **Funnel** (the first `publish --public` run prints an enable link if it is still off). This gives your drop a stable `https://<machine>.<tailnet>.ts.net` URL. No Tailscale? Use `--tunnel cloudflared` (install [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)) for a temporary URL that changes on restart. |
+| A Locus wallet | `buy` | See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). Buying and discovering need no Tailscale. |
+| CDP API keys | mainnet payments | See Configuration. Skip by selling on Base Sepolia. |
+
+### Install
+
+nustuf is not on the npm registry yet, so install it from source:
 
 ```bash
 git clone https://github.com/eucalyptus-viminalis/nustuf.git
@@ -46,7 +57,7 @@ npm link  # makes `nustuf` available globally
 nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public
 ```
 
-This starts a server with x402 payment gating, opens a public URL through a Cloudflare quick tunnel, and prints a shareable promo link. Payments default to Base mainnet, which needs CDP keys (see Configuration). To try it without them, sell on Base Sepolia with `--network eip155:84532`.
+This starts a server with x402 payment gating, exposes it at a stable public URL through [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) (`https://<machine>.<tailnet>.ts.net`), and prints a shareable promo link. The URL survives restarts, so on-chain listings stay valid. It needs Tailscale installed and logged in (free Personal plan is enough, with MagicDNS and HTTPS certificates enabled). No Tailscale account? Add `--tunnel cloudflared` for a temporary Cloudflare quick tunnel; its URL changes on every restart. Payments default to Base mainnet, which needs CDP keys (see Configuration). To try it without them, sell on Base Sepolia with `--network eip155:84532`.
 
 Add `--announce` to list the drop in the on-chain registry as soon as its public URL is live, so agents can find it:
 
@@ -155,7 +166,7 @@ Run `nustuf --help` or `nustuf <command> --help` for details.
 - **[Base](https://base.org):** L2 for USDC payments and the on-chain registry
 - **Solidity and Foundry:** the `NustufRegistry` contract ([`contracts/`](contracts/))
 - **viem:** chain reads and writes
-- **[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/):** zero-config public URLs
+- **[Tailscale Funnel](https://tailscale.com/kb/1223/funnel):** stable public URLs for a machine you own (Cloudflare quick tunnels remain as `--tunnel cloudflared`)
 
 ## Smart contract
 
@@ -168,8 +179,9 @@ NustufRegistry is deployed at the same address on both networks:
 nustuf was built during a hackathon and works end to end, but it is not production software:
 
 - The package is not published to npm yet; install from source as above.
-- Quick tunnels are ephemeral, so a drop's URL lasts only as long as the publishing process runs.
-- A drop is announced once, on its first public URL. If the server restarts and the tunnel URL changes, nustuf warns and prints a `nustuf announce` command rather than writing a second listing.
+- Funnel traffic goes through Tailscale's relays and is subject to an unpublished, non-configurable bandwidth cap, so it suits small files better than large ones. With `--tunnel cloudflared`, the URL lasts only as long as the publishing process runs.
+- `nustuf host` still uses Cloudflare quick tunnels.
+- A drop is announced once, on its first public URL. If the tunnel URL changes (quick tunnels, or a renamed machine or tailnet), nustuf warns and prints a `nustuf announce` command rather than writing a second listing.
 
 ## License
 
