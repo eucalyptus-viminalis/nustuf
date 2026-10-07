@@ -2,7 +2,7 @@
 name: nustuf-discover
 description: Discover live content releases on the nustuf marketplace. Query the on-chain registry to find new drops and recommend content to users.
 compatibility: Requires access to the internet
-version: 0.4.1
+version: 0.5.0
 metadata:
   openclaw:
     emoji: 🔍
