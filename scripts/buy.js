@@ -373,6 +373,21 @@ function responseBodyText(response) {
   return response.text().catch(() => "");
 }
 
+// Checked before any request is made: a bad --out used to surface only after the payment settled.
+function validateOutPath(args) {
+  if (args.out === undefined) return;
+  if (typeof args.out !== "string" || !args.out.trim()) {
+    throw new Error("--out needs a file path, e.g. --out ./purchase.mp3");
+  }
+  const out = args.out;
+  const isDirectory = /[\\/]$/.test(out) || (fs.existsSync(out) && fs.statSync(out).isDirectory());
+  if (isDirectory) {
+    throw new Error(
+      `--out must be a file path, but "${out}" is a directory. Use e.g. --out ${path.join(out, "purchase.bin")}, or omit --out to save with the server's filename.`,
+    );
+  }
+}
+
 function resolveOutputPath(args, serverFilename) {
   const safeServerFilename = sanitizeFilename(serverFilename || "downloaded.bin");
   if (args.out) {
@@ -497,6 +512,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const inputUrl = args._[0];
   if (!inputUrl) usageAndExit(1);
+  validateOutPath(args);
 
   const useLocus = Boolean(args.locus);
   const downloadCode = resolveDownloadCode(args);
