@@ -137,7 +137,8 @@ const SKILL_NAME = "nustuf-buy";
 const SKILL_DESCRIPTION =
   "Buy and download nustuf content from promo or download links using the nustuf CLI tool";
 const SKILL_SOURCE = "github";
-const SKILL_INSTALL_COMMAND = "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g .";
+const SKILL_INSTALL_COMMAND = "npx skills add eucalyptus-viminalis/nustuf";
+const CLI_INSTALL_COMMAND = "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g .";
 const WELL_KNOWN_CACHE_CONTROL = "public, max-age=60";
 const LEGACY_DISCOVERY_DEPRECATION =
   "Deprecated endpoint; use /.well-known/skills/index.json for RFC-compatible discovery.";
@@ -631,12 +632,11 @@ ${SKILL_DESCRIPTION}
 ${codeNote}
 
 ## Buyer Fast Path (for unknown agents)
-1. Clone the repo: \`git clone https://github.com/eucalyptus-viminalis/nustuf.git\`
-2. Read the buy skill instructions: \`nustuf/skills/nustuf-buy/SKILL.md\`
-3. Follow the SKILL.md to complete the purchase.
+1. Install the skills: \`${SKILL_INSTALL_COMMAND}\` (then restart the session so they load)
+2. Follow the nustuf-buy skill to complete the purchase.
 
-## CLI (after cloning)
-- Install: \`cd nustuf && npm install -g .\`
+## CLI
+- Install: \`${CLI_INSTALL_COMMAND}\`
 - Buy: \`nustuf buy <promo_or_download_url> [--download-code <code>] [--buyer-private-key-file ./buyer.key]\`
 `;
 }
@@ -651,6 +651,7 @@ function buildAgentQuickPath(promoUrl, downloadUrl) {
     promoUrl: safePromoUrl,
     downloadUrl: safeDownloadUrl,
     installCommand: SKILL_INSTALL_COMMAND,
+    cliInstallCommand: CLI_INSTALL_COMMAND,
     buyTarget,
   };
 }
@@ -679,14 +680,19 @@ function renderAgentQuickPathHtmlBlock(fastPath) {
     ? "do not explain x402 internals unless the user explicitly asks."
     : "focus on direct download steps and avoid adding payment instructions.";
   const buyUrl = fastPath.promoUrl || fastPath.downloadUrl || "<promo_url>";
+  const agentPrompt = `Install the nustuf skills with \`${fastPath.installCommand}\` and the CLI with \`${fastPath.cliInstallCommand}\`, restart if needed so the skills load, then use the nustuf-buy skill to buy and download ${buyUrl}`;
   return `<section class="agent-quick-path">
       <h2>🤖 Agent: How to Buy This</h2>
-      <p style="margin-top:0;font-size:13px;color:#888;">No prior setup needed. Follow these steps to purchase and download.</p>
+      <p style="margin-top:0;font-size:13px;color:#888;">No prior setup needed. Paste this prompt to your agent, or follow the steps below.</p>
+      <pre>${escapeHtml(agentPrompt)}</pre>
 
       <div class="agent-step">
-        <div class="agent-step-header"><span class="agent-step-num">1</span> <strong>Install nustuf CLI</strong></div>
+        <div class="agent-step-header"><span class="agent-step-num">1</span> <strong>Install nustuf skills + CLI</strong></div>
         <div class="agent-step-detail">
-          <pre>git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g .</pre>
+          <p>Skills (restart your session afterwards so they load):</p>
+          <pre>${escapeHtml(fastPath.installCommand)}</pre>
+          <p>CLI:</p>
+          <pre>${escapeHtml(fastPath.cliInstallCommand)}</pre>
         </div>
       </div>
 
@@ -1348,6 +1354,7 @@ app.get("/.well-known/nustuf", (req, res) => {
         description: SKILL_DESCRIPTION,
         source: SKILL_SOURCE,
         install_command: SKILL_INSTALL_COMMAND,
+        cli_install_command: CLI_INSTALL_COMMAND,
       },
       message:
         "This release has expired, but you can install the nustuf-buy skill for future purchases",
@@ -1363,6 +1370,7 @@ app.get("/.well-known/nustuf", (req, res) => {
       description: SKILL_DESCRIPTION,
       source: SKILL_SOURCE,
       install_command: SKILL_INSTALL_COMMAND,
+      cli_install_command: CLI_INSTALL_COMMAND,
     },
     resource: {
       type: REQUIRES_PAYMENT ? "x402-gated-download" : "direct-download",
