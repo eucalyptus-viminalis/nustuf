@@ -168,6 +168,10 @@ Run `nustuf --help` or `nustuf <command> --help` for details.
 - **viem:** chain reads and writes
 - **[Tailscale Funnel](https://tailscale.com/kb/1223/funnel):** stable public URLs for a machine you own (Cloudflare quick tunnels remain as `--tunnel cloudflared`)
 
+## Privacy
+
+What Tailscale's relays can and cannot see when you sell with `--public`, and what ends up public: see [`docs/privacy.md`](docs/privacy.md).
+
 ## Smart contract
 
 NustufRegistry is deployed at the same address on both networks:
