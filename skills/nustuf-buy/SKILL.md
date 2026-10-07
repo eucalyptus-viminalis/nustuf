@@ -89,8 +89,11 @@ nustuf buy <release-url> --download-code "friends-only"
 
 ### Specify output location
 
+`--out` takes a **file path**, not a directory (a directory is rejected). Create the folder first and name the file; omit `--out` to save with the server's filename in the current directory.
+
 ```bash
-nustuf buy <release-url> --locus --out ./downloads/
+mkdir -p downloads
+nustuf buy <release-url> --locus --out downloads/purchase.bin
 ```
 
 ## How it works
