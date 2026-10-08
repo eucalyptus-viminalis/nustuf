@@ -51,11 +51,16 @@ function usageAndExit(code = 0) {
   console.log("");
   console.log(outUi.section("Usage"));
   console.log("  nustuf config");
-  console.log("  nustuf config show");
+  console.log("  nustuf config show [--json]");
+  console.log("  nustuf config set [--price <usdc>] [--window <duration>] [--network <caip2>]");
+  console.log("                    [--pay-to <address>] [--access-mode <mode>] [--title <text>]");
+  console.log("                    [--description <text>] [--display-name <text>] [--bio <text>]");
+  console.log("  nustuf config unset <price|window|network|pay-to|access-mode|title|description|display-name|bio>...");
   console.log("  nustuf config --write-env");
   console.log("");
   console.log(outUi.section("Notes"));
   console.log("  - Stores defaults in ~/.nustuf/config.json");
+  console.log("  - `set` and `unset` are non-interactive (for agents); secrets stay in the wizard");
   console.log("  - `--write-env` writes a project .env scaffold in the current directory");
   process.exit(code);
 }
@@ -177,8 +182,100 @@ async function askDownloadCodeHash(rl, existingHash, accessMode) {
   return hashDownloadCode(raw);
 }
 
-function printShow() {
+// Profile flags settable without the wizard. Secrets (CDP keys, download code) are deliberately excluded.
+const PROFILE_FLAGS = {
+  price: "priceUsd",
+  window: "window",
+  network: "chainId",
+  "pay-to": "sellerPayTo",
+  "access-mode": "accessMode",
+  title: "ogTitle",
+  description: "ogDescription",
+  "display-name": "displayName",
+  bio: "bio",
+};
+
+function validateProfileValue(flag, raw) {
+  const value = String(raw).trim();
+  switch (flag) {
+    case "price": {
+      if (!value || Number.isNaN(Number(value)) || Number(value) < 0) {
+        throw new Error("--price must be a non-negative number of USDC");
+      }
+      return value;
+    }
+    case "window": {
+      if (parseDurationToSeconds(value) === null) {
+        throw new Error("--window must look like 15m, 24h, 7d or a number of seconds");
+      }
+      return value;
+    }
+    case "network":
+      return resolveSupportedChain(value).caip2;
+    case "pay-to": {
+      if (!isAddress(value)) throw new Error("--pay-to must be a valid 0x address");
+      return value;
+    }
+    case "access-mode": {
+      const mode = value.toLowerCase();
+      if (!isValidAccessMode(mode)) {
+        throw new Error(`--access-mode must be one of: ${ACCESS_MODE_VALUES.join(", ")}`);
+      }
+      return mode;
+    }
+    default:
+      if (!value) throw new Error(`--${flag} cannot be empty (use \`nustuf config unset ${flag}\`)`);
+      return value;
+  }
+}
+
+function runSet(args) {
+  const flags = Object.keys(PROFILE_FLAGS).filter((f) => args[f] !== undefined);
+  if (flags.length === 0) usageAndExit(1);
+
   const loaded = readConfig();
+  if (loaded.error) logWarn(loaded.error);
+  const defaults = { ...loaded.config.defaults };
+
+  for (const flag of flags) {
+    if (args[flag] === true) {
+      logError(`--${flag} needs a value`);
+      process.exit(1);
+    }
+    try {
+      defaults[PROFILE_FLAGS[flag]] = validateProfileValue(flag, args[flag]);
+    } catch (err) {
+      logError(err.message || String(err));
+      process.exit(1);
+    }
+  }
+
+  const written = writeConfig({ version: 1, defaults });
+  logOk(`Saved ${flags.join(", ")} to ${written.path}`);
+}
+
+function runUnset(keys) {
+  const unknown = keys.filter((k) => !PROFILE_FLAGS[k]);
+  if (keys.length === 0 || unknown.length) {
+    if (unknown.length) logError(`Unknown key: ${unknown.join(", ")}`);
+    usageAndExit(1);
+  }
+
+  const loaded = readConfig();
+  if (loaded.error) logWarn(loaded.error);
+  const defaults = { ...loaded.config.defaults };
+  for (const key of keys) delete defaults[PROFILE_FLAGS[key]];
+
+  const written = writeConfig({ version: 1, defaults });
+  logOk(`Cleared ${keys.join(", ")} in ${written.path}`);
+}
+
+function printShow({ json = false } = {}) {
+  const loaded = readConfig();
+  if (json) {
+    console.log(JSON.stringify(redactConfig(loaded.config), null, 2));
+    return;
+  }
   if (loaded.error) {
     logWarn(loaded.error);
   }
@@ -463,11 +560,21 @@ async function main() {
   const sub = args._[0];
 
   if (sub === "show") {
-    printShow();
+    printShow({ json: Boolean(args.json) });
     return;
   }
 
-  if (sub && sub !== "show") {
+  if (sub === "set") {
+    runSet(args);
+    return;
+  }
+
+  if (sub === "unset") {
+    runUnset(args._.slice(1));
+    return;
+  }
+
+  if (sub) {
     usageAndExit(1);
   }
 

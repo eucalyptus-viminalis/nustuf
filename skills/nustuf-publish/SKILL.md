@@ -119,6 +119,12 @@ Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too 
 5. **Title and description** — for on-chain metadata and promo page
 6. **Network** — Base mainnet (`eip155:8453`) or Base Sepolia testnet (`eip155:84532`)
 
+### Saved profile
+
+Before asking, run `nustuf config show --json` and read `defaults` (`priceUsd`, `window`, `chainId`, `sellerPayTo`, `ogTitle`, `ogDescription`, `displayName`, `bio`). For each input that has a saved value, put it first as "<value> (Recommended — your usual)" so the user can accept it in one click. A saved value is only a suggestion: still ask, and never publish on it without the user's answer. Visibility and the public-exposure consent are never saved.
+
+After a successful publish, if the user chose values that differ from the profile (or there is no profile), offer once to save them, then run e.g. `nustuf config set --price 1 --window 24h --network eip155:8453 --pay-to 0x...`. Use `nustuf config unset <key>` to clear one. Never put keys, secrets or download codes in the profile.
+
 ### How to ask
 
 If the `AskUserQuestion` tool is available (Claude Code), collect the inputs with it instead of free-form prose. Batch up to 4 questions per call, and put the recommended option first, labelled "(Recommended)". "Other" is added automatically, so presets never block a custom value.

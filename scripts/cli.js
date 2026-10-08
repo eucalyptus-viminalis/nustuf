@@ -38,7 +38,9 @@ function printHelp() {
   console.log("                                            Browse live releases in the browser");
   console.log("  nustuf buy <url> [options]                Purchase content");
   console.log("  nustuf host --config <path> [options]     Multi-host server");
-  console.log("  nustuf config [show|--write-env]          Manage configuration");
+  console.log("  nustuf status [--json] [--all]            Show what this machine is serving right now");
+  console.log("  nustuf stop <id>|all                      Stop a published item (or everything)");
+  console.log("  nustuf config [show|set|unset|--write-env] Manage saved defaults (profile)");
   console.log("  nustuf wallet <create|show|export>        Generate and check a buyer or seller wallet");
   console.log("  nustuf version                            Show version");
   console.log("");
@@ -126,6 +128,10 @@ if (sub === "publish") {
   runSubcommand("feed-ui.js", process.argv.slice(3));
 } else if (sub === "host") {
   runSubcommand("host.js", process.argv.slice(3));
+} else if (sub === "status") {
+  runSubcommand("status.js", ["status", ...process.argv.slice(3)]);
+} else if (sub === "stop") {
+  runSubcommand("status.js", ["stop", ...process.argv.slice(3)]);
 } else if (sub === "config") {
   runSubcommand("config.js", process.argv.slice(3));
 } else if (sub === "wallet") {

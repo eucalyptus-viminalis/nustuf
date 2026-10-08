@@ -104,6 +104,12 @@ function normalizeDefaults(rawDefaults) {
   const ogDescription = trimString(rawDefaults.ogDescription);
   if (ogDescription) defaults.ogDescription = ogDescription;
 
+  const displayName = trimString(rawDefaults.displayName);
+  if (displayName) defaults.displayName = displayName;
+
+  const bio = trimString(rawDefaults.bio);
+  if (bio) defaults.bio = bio;
+
   const accessMode = trimString(rawDefaults.accessMode).toLowerCase();
   if (isValidAccessMode(accessMode)) {
     defaults.accessMode = accessMode;
