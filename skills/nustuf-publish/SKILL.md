@@ -119,6 +119,19 @@ Quick tunnels via `trycloudflare.com` can be rate-limited if you start/stop too 
 5. **Title and description** — for on-chain metadata and promo page
 6. **Network** — Base mainnet (`eip155:8453`) or Base Sepolia testnet (`eip155:84532`)
 
+### How to ask
+
+If the `AskUserQuestion` tool is available (Claude Code), collect the inputs with it instead of free-form prose. Batch up to 4 questions per call, and put the recommended option first, labelled "(Recommended)". "Other" is added automatically, so presets never block a custom value.
+
+- **Network** — "Base mainnet (Recommended)" or "Base Sepolia testnet (free, for trying it out)". Ask this first; it decides the rest.
+- **Price in USDC** — presets `0.50`, `1`, `5`, `10`.
+- **Sale window** — presets `1h`, `24h (Recommended)`, `7d`, `30d`.
+- **Visibility** — "Public and listed on-chain (discoverable)", "Public, not listed", or "Private". Warn that on-chain announcement is permanent. Public exposure still needs the explicit consent phrase.
+
+Always ask in plain text, since there are no sensible presets: file path (confirm it), title and description. For the payout address, offer the seller wallet from `nustuf wallet show --role seller` as an option if one exists, otherwise ask for an address.
+
+If `AskUserQuestion` is not available, ask the same questions as one numbered plain-text message, listing the presets inline (e.g. "Sale window: 1h / 24h / 7d / 30d, or your own value"), and wait for the reply. Never fill in an answer the user did not give.
+
 ## On-chain announcement
 
 When publishing, nustuf writes to the Base L2 registry contract:
