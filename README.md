@@ -117,6 +117,18 @@ Opens a local web UI showing live announcements from the on-chain registry. No w
 - `--port <port>` changes the local port (default 3000, or the `PORT` env var).
 - `--public` also exposes the feed at a public URL, using Tailscale Funnel by default (stable URL) or `--tunnel cloudflared` (temporary URL). Without it, the feed stays on localhost.
 
+### See what you're serving
+
+```bash
+nustuf status          # what this machine is serving right now
+nustuf status --json   # same, machine-readable
+nustuf stop <id>       # stop one item (id or unique prefix), or: nustuf stop all
+```
+
+Every `nustuf publish` records itself under `~/.nustuf/runs/`, so `status` works from any terminal. Runs started before this was added show as `unknown` in `status --all` and are not listed as serving.
+
+For a menu bar indicator, install [SwiftBar](https://swiftbar.app) (`brew install --cask swiftbar`) and copy `integrations/swiftbar/nustuf.10s.sh` into its plugin folder. It shows a green dot and count while anything is live, with a per-item menu to open, copy the link, or stop.
+
 ### Wallets
 
 ```bash
@@ -184,6 +196,8 @@ nustuf buy        Purchase content
 nustuf discover   Find live releases
 nustuf feed-ui    Browse live releases in the browser
 nustuf announce   Register a drop on-chain
+nustuf status     Show what this machine is serving
+nustuf stop       Stop a published item (or all)
 nustuf host       Multi-host server
 nustuf config     Manage configuration
 nustuf wallet     Generate and check a buyer or seller wallet

@@ -155,6 +155,10 @@ function announce(
 
 This makes the release discoverable by any agent running `nustuf-discover`.
 
+## Checking and stopping what is live
+
+`nustuf status --json` lists everything this machine is serving (title, price, URL, time left). Run it before publishing to avoid port conflicts, and when the user asks what is live. `nustuf stop <id>` or `nustuf stop all` ends a drop; confirm with the user before stopping anything.
+
 ## Response format
 
 ```json

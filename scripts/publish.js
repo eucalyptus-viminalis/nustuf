@@ -28,6 +28,7 @@ import {
   isValidDownloadCodeHash,
 } from "../src/download_code.js";
 import { createUi } from "./ui.js";
+import { getRunsDirPath } from "./runs_store.js";
 import {
   DEFAULT_TUNNEL_PROVIDER,
   normalizeTunnelProvider,
@@ -47,7 +48,6 @@ const PUBLIC_CONFIRM_PHRASE = "I_UNDERSTAND_PUBLIC_EXPOSURE";
 const ABSOLUTE_SENSITIVE_PATHS = ["/etc", "/proc", "/sys", "/var/run/secrets"];
 const ALLOWED_CONFIRMATION_POLICIES = new Set(["confirmed", "optimistic"]);
 const ALLOWED_FACILITATOR_MODES = new Set(["testnet", "cdp_mainnet"]);
-const RUNS_DIR = ".nustuf/runs";
 const outUi = createUi(output);
 const errUi = createUi(process.stderr);
 
@@ -953,11 +953,6 @@ function bestEffortChmod(targetPath, mode) {
   }
 }
 
-function getRunsDirPath() {
-  const home = process.env.HOME || os.homedir();
-  return path.join(home, RUNS_DIR);
-}
-
 function ensureRunsDir() {
   const runsDir = getRunsDirPath();
   fs.mkdirSync(runsDir, { recursive: true });
@@ -1655,6 +1650,14 @@ async function main() {
     latestBuyUrl: null,
     status: "running",
     lastExitReason: "",
+    // Read by `nustuf status` / `nustuf stop` and the SwiftBar plugin.
+    pid: process.pid,
+    title: (typeof args.title === "string" && args.title) || ogTitle || path.basename(artifactPath),
+    file: artifactPath,
+    price: String(prompted.price),
+    network,
+    accessMode,
+    port,
   };
   runState = persistRunState(runStatePaths, runState);
 
