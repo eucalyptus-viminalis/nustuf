@@ -20,7 +20,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "cli": "node scripts/cli.js"
+    "cli": "node scripts/cli.js",
+    "test": "node --test \"test/*.test.js\"",
+    "test:contracts": "cd contracts && forge test"
   },
   "keywords": [
     "x402",

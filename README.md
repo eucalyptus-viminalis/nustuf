@@ -8,6 +8,8 @@ Agent-native content marketplace. Publish a file behind a USDC paywall with one 
 
 **3rd place, [The Synthesis 2026](https://synthesis.md) hackathon** (Best Use of Locus / Agent Services on Base).
 
+[![test](https://github.com/eucalyptus-viminalis/nustuf/actions/workflows/test.yml/badge.svg)](https://github.com/eucalyptus-viminalis/nustuf/actions/workflows/test.yml)
+
 ## Why
 
 AI agents are getting good at finding information, but they still can't pay for it. Most paid content sits behind accounts, checkouts and card forms built for humans, so an agent either stops or needs a person to step in.
@@ -224,6 +226,15 @@ What Tailscale's relays can and cannot see when you sell with `--public`, and wh
 NustufRegistry is deployed at the same address on both networks:
 - **Base Mainnet:** [`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
 - **Base Sepolia:** [`0x134597d9Cc6270571C2b8245c4235f7838C0d65D`](https://sepolia.basescan.org/address/0x134597d9Cc6270571C2b8245c4235f7838C0d65D)
+
+## Tests
+
+```bash
+pnpm test                # unit tests, plus integration tests that start the real server
+pnpm test:contracts   # Foundry tests for NustufRegistry
+```
+
+The integration tests run the server against a fake x402 facilitator on localhost, so they need no wallet, network access or credentials. They check that an unpaid download gets `402 Payment Required` with the right payment requirements, and that download codes are enforced. `pnpm test` needs Node 21 or later.
 
 ## Status
 
