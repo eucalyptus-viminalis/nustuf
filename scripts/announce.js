@@ -200,6 +200,54 @@ export async function announceRelease(options) {
   };
 }
 
+const ZERO_HASH = "0x" + "0".repeat(64);
+
+// Validates the CLI inputs and returns exactly what will be written to the registry.
+// Pure (no network, no key), so it can be checked before any gas is spent.
+export function buildAnnouncePlan(args, { now = Math.floor(Date.now() / 1000) } = {}) {
+  if (!args.url || args.url === true) throw new Error("--url is required");
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(String(args.url));
+  } catch {
+    throw new Error(`Invalid --url: ${args.url}`);
+  }
+  if (!/^https?:$/.test(parsedUrl.protocol)) {
+    throw new Error(`--url must be http(s), got ${parsedUrl.protocol}`);
+  }
+
+  if (!args.price || args.price === true) throw new Error("--price is required");
+  if (!/^\d+(\.\d{1,6})?$/.test(String(args.price))) {
+    throw new Error(`--price must be a USDC amount with at most 6 decimals, got "${args.price}"`);
+  }
+  const priceUnits = parseUnits(String(args.price), 6);
+  if (priceUnits <= 0n) throw new Error("--price must be greater than 0");
+
+  if (!args.expires || args.expires === true) throw new Error("--expires is required");
+  if (!/^\d+$/.test(String(args.expires))) {
+    throw new Error(`--expires must be a unix timestamp in seconds, got "${args.expires}"`);
+  }
+  const expiresAt = Number(args.expires);
+  if (expiresAt <= now) throw new Error(`--expires ${expiresAt} is already in the past`);
+
+  let contentHash = args["content-hash"];
+  if (contentHash !== undefined && !/^0x[0-9a-fA-F]{64}$/.test(String(contentHash))) {
+    throw new Error("--content-hash must be 0x followed by 64 hex characters");
+  }
+  if (!contentHash && args.file) contentHash = computeFileHash(args.file);
+
+  return {
+    url: String(args.url),
+    priceUsdc: String(args.price),
+    priceUnits,
+    expiresAt,
+    title: typeof args.title === "string" ? args.title : "",
+    description: typeof args.description === "string" ? args.description : "",
+    contentHash: contentHash || ZERO_HASH,
+    useTestnet: registryUsesTestnet(args),
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -207,31 +255,21 @@ async function main() {
     usageAndExit(1);
   }
 
-  if (!args.price) {
-    throw new Error("--price is required");
-  }
-
-  if (!args.expires) {
-    throw new Error("--expires is required");
-  }
-
-  let contentHash = args["content-hash"];
-  if (!contentHash && args.file) {
-    contentHash = computeFileHash(args.file);
-    console.log(outUi.statusLine("info", `Computed content hash: ${contentHash}`));
+  const plan = buildAnnouncePlan(args);
+  if (!args["content-hash"] && args.file) {
+    console.log(outUi.statusLine("info", `Computed content hash: ${plan.contentHash}`));
   }
 
   const privateKey = loadPrivateKey(args);
-  const useTestnet = registryUsesTestnet(args);
 
   await announceRelease({
-    url: args.url,
-    priceUsdc: parseFloat(args.price),
-    expiresAt: parseInt(args.expires),
-    title: args.title || "",
-    description: args.description || "",
-    contentHash: contentHash || "0x" + "0".repeat(64),
-    useTestnet,
+    url: plan.url,
+    priceUsdc: plan.priceUsdc,
+    expiresAt: plan.expiresAt,
+    title: plan.title,
+    description: plan.description,
+    contentHash: plan.contentHash,
+    useTestnet: plan.useTestnet,
     privateKey,
   });
 }
