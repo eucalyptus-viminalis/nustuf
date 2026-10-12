@@ -250,7 +250,7 @@ function runSet(args) {
     }
   }
 
-  const written = writeConfig({ version: 1, defaults });
+  const written = writeConfig({ ...loaded.config, defaults });
   logOk(`Saved ${flags.join(", ")} to ${written.path}`);
 }
 
@@ -266,7 +266,7 @@ function runUnset(keys) {
   const defaults = { ...loaded.config.defaults };
   for (const key of keys) delete defaults[PROFILE_FLAGS[key]];
 
-  const written = writeConfig({ version: 1, defaults });
+  const written = writeConfig({ ...loaded.config, defaults });
   logOk(`Cleared ${keys.join(", ")} in ${written.path}`);
 }
 
@@ -542,7 +542,7 @@ async function runWizard({ writeEnv }) {
       downloadCodeHash,
     };
 
-    const written = writeConfig({ version: 1, defaults });
+    const written = writeConfig({ ...loaded.config, defaults });
     logOk(`Saved ${written.path}`);
     console.log("");
     console.log(JSON.stringify(redactConfig(written.config), null, 2));

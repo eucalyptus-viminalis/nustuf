@@ -131,6 +131,22 @@ function normalizeDefaults(rawDefaults) {
   return defaults;
 }
 
+// ERC-8004 registrations keyed by "<caip2>:<registry address>".
+function normalizeIdentities(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw)) {
+    const agentId = trimString(value?.agentId);
+    if (!agentId) continue;
+    out[key] = { agentId };
+    for (const field of ["owner", "agentURI", "txHash"]) {
+      const v = trimString(value[field]);
+      if (v) out[key][field] = v;
+    }
+  }
+  return out;
+}
+
 export function normalizeConfig(rawConfig) {
   const normalized = {
     version: CONFIG_VERSION,
@@ -139,6 +155,8 @@ export function normalizeConfig(rawConfig) {
 
   if (!rawConfig || typeof rawConfig !== "object") return normalized;
   normalized.defaults = normalizeDefaults(rawConfig.defaults);
+  const identities = normalizeIdentities(rawConfig.identities);
+  if (Object.keys(identities).length) normalized.identities = identities;
   return normalized;
 }
 

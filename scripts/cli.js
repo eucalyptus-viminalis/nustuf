@@ -42,6 +42,7 @@ function printHelp() {
   console.log("  nustuf stop <id>|all                      Stop a published item (or everything)");
   console.log("  nustuf config [show|set|unset|--write-env] Manage saved defaults (profile)");
   console.log("  nustuf wallet <create|show|export>        Generate and check a buyer or seller wallet");
+  console.log("  nustuf identity <register|show>           ERC-8004 agent identity (testnet, draft)");
   console.log("  nustuf version                            Show version");
   console.log("");
   console.log(outUi.section("Publish Options"));
@@ -134,6 +135,8 @@ if (sub === "publish") {
   runSubcommand("status.js", ["stop", ...process.argv.slice(3)]);
 } else if (sub === "config") {
   runSubcommand("config.js", process.argv.slice(3));
+} else if (sub === "identity") {
+  runSubcommand("identity.js", process.argv.slice(3));
 } else if (sub === "wallet") {
   runSubcommand("wallet.js", process.argv.slice(3));
 } else if (sub === "leak") {
