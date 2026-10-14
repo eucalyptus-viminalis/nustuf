@@ -2,7 +2,7 @@
 name: nustuf-publish
 description: Publish content to the nustuf marketplace behind an x402 payment gate and announce on-chain for discovery.
 compatibility: Requires access to the internet
-version: 0.11.0
+version: 0.12.0
 metadata:
   openclaw:
     emoji: 📡

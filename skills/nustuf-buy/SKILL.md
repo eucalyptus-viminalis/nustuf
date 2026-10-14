@@ -2,7 +2,7 @@
 name: nustuf-buy
 description: Buy content from the nustuf marketplace with a nustuf buyer wallet or Locus. Agents pay autonomously within human-defined spending limits.
 compatibility: Requires access to the internet
-version: 0.11.0
+version: 0.12.0
 metadata:
   openclaw:
     emoji: 🛒
