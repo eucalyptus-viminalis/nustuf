@@ -90,6 +90,24 @@ export function registryUsesTestnet(args = {}) {
   return Boolean(args.testnet) || REGISTRY_CHAIN === "base-sepolia";
 }
 
+export function resolvePublishRegistryChain({ network, args = {}, env = process.env }) {
+  const paymentsOnTestnet = String(network) === `eip155:${baseSepolia.id}`;
+  const explicit = args.testnet
+    ? { useTestnet: true, source: "--testnet" }
+    : env.NUSTUF_REGISTRY_CHAIN
+      ? { useTestnet: env.NUSTUF_REGISTRY_CHAIN === "base-sepolia", source: `NUSTUF_REGISTRY_CHAIN=${env.NUSTUF_REGISTRY_CHAIN}` }
+      : null;
+  if (explicit && explicit.useTestnet !== paymentsOnTestnet) {
+    const pay = getChain(paymentsOnTestnet).name;
+    const listing = getChain(explicit.useTestnet).name;
+    throw new Error(
+      `Payments are on ${pay} but the on-chain listing would go to ${listing} (from ${explicit.source}). ` +
+        `Drop ${explicit.source} to list on ${pay}, or change --network so they match.`,
+    );
+  }
+  return { useTestnet: paymentsOnTestnet };
+}
+
 function normalizeHexKey(raw) {
   const key = String(raw).trim().split(/\r?\n/, 1)[0].trim();
   return key.startsWith("0x") ? key : `0x${key}`;

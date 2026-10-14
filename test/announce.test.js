@@ -178,3 +178,33 @@ test("announceRelease: returns the sender and reports the hash before confirmati
   assert.equal(res.transactionHash, hash);
   assert.equal(res.explorerUrl, `https://sepolia.basescan.org/tx/${hash}`);
 });
+
+import { resolvePublishRegistryChain } from "../scripts/announce.js";
+
+test("publish listing follows the payment network by default", () => {
+  assert.equal(resolvePublishRegistryChain({ network: "eip155:84532", args: {}, env: {} }).useTestnet, true);
+  assert.equal(resolvePublishRegistryChain({ network: "eip155:8453", args: {}, env: {} }).useTestnet, false);
+});
+
+test("publish listing: --testnet or NUSTUF_REGISTRY_CHAIN that agree with payments are fine", () => {
+  assert.equal(resolvePublishRegistryChain({ network: "eip155:84532", args: { testnet: true }, env: {} }).useTestnet, true);
+  assert.equal(
+    resolvePublishRegistryChain({ network: "eip155:84532", args: {}, env: { NUSTUF_REGISTRY_CHAIN: "base-sepolia" } }).useTestnet,
+    true,
+  );
+  assert.equal(
+    resolvePublishRegistryChain({ network: "eip155:8453", args: {}, env: { NUSTUF_REGISTRY_CHAIN: "base" } }).useTestnet,
+    false,
+  );
+});
+
+test("publish listing: an explicit chain that disagrees with payments is an error", () => {
+  assert.throws(
+    () => resolvePublishRegistryChain({ network: "eip155:8453", args: { testnet: true }, env: {} }),
+    /Payments are on Base .*listing .*Base Sepolia/,
+  );
+  assert.throws(
+    () => resolvePublishRegistryChain({ network: "eip155:84532", args: {}, env: { NUSTUF_REGISTRY_CHAIN: "base" } }),
+    /Payments are on Base Sepolia .*listing .*Base\b/,
+  );
+});

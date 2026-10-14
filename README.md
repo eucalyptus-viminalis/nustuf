@@ -81,10 +81,10 @@ nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public 
 A full testnet run, with payments and the listing both on Base Sepolia:
 
 ```bash
-nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --network eip155:84532 --announce --testnet --title "My Track"
+nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --network eip155:84532 --announce --title "My Track"
 ```
 
-The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file. It is signed by the first key found among `--private-key-file`, `DEPLOYER_PRIVATE_KEY` (shell or `.env`), the seller wallet and `.locus.json`; the publish summary prints the signer address and its balance. It is written to Base mainnet by default, which costs a little gas; add `--testnet` for Base Sepolia. If the signer has no ETH on that chain, publish exits before going live. The announce result (tx hash or error) shows up in `nustuf status --json`. If the announce fails, the drop stays live and nustuf prints the `nustuf announce` command to retry by hand.
+The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file. It is signed by the first key found among `--private-key-file`, `DEPLOYER_PRIVATE_KEY` (shell or `.env`), the seller wallet and `.locus.json`; the publish summary prints the signer address and its balance. It is written to the same chain as the payments (`--network`), so a Base Sepolia drop is listed on Base Sepolia; a `--testnet` or `NUSTUF_REGISTRY_CHAIN` that disagrees with `--network` is an error. Listing on mainnet costs a little real gas. If the signer has no ETH on that chain, publish exits before going live. The announce result (tx hash or error) shows up in `nustuf status --json`. If the announce fails, the drop stays live and nustuf prints the `nustuf announce` command to retry by hand.
 
 > **Note:** in a terminal, `nustuf publish` opens an interactive wizard prefilled from your flags and saved profile (`nustuf config`). Without a terminal (agents, CI, scripts) it runs straight from the flags, and `--public` also needs `--public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE`.
 
@@ -153,7 +153,7 @@ Set these as environment variables or in a `.env` file.
 |---|---|---|
 | `LOCUS_API_KEY` | `buy --locus` | Locus agent wallet. A `.locus.json` file with `{ "apiKey": "..." }` also works. No wallet yet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). |
 | `NUSTUF_REGISTRY_ADDRESS` | `publish --announce`, `announce`, `discover` | Optional. Defaults to the deployed registry, `0x134597d9Cc6270571C2b8245c4235f7838C0d65D`. |
-| `NUSTUF_REGISTRY_CHAIN` | `publish --announce`, `announce`, `discover` | Optional. `base` (default) or `base-sepolia`. Both commands use the same default, so announced drops show up in `discover`. |
+| `NUSTUF_REGISTRY_CHAIN` | `publish --announce`, `announce`, `discover` | Optional. `base` (default) or `base-sepolia` for `announce` and `discover`. `publish --announce` lists on the `--network` chain, and exits with an error if this disagrees. |
 | `DEPLOYER_PRIVATE_KEY` | `publish --announce`, `announce`, `identity` | Optional. Key that signs on-chain writes; without it nustuf uses the seller wallet. Use a dedicated low-value key. |
 | `SELLER_PAY_TO` | `publish` | Optional. Payout address when `--pay-to` is not given (after that, the saved profile). |
 | `NUSTUF_DOWNLOAD_DIR` | `buy` | Optional. Download folder (default `~/Downloads/nustuf/`). |

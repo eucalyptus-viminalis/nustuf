@@ -35,7 +35,7 @@ Publish content behind an x402 payment gate and announce the release on-chain so
 - `nustuf` installed from GitHub with pnpm and linked globally (see the install block above).
 - Tailscale installed and logged in for `--public` (see "Tailscale setup" in the README: MagicDNS, HTTPS certificates and Funnel must be enabled). Without Tailscale, add `--tunnel cloudflared` for a temporary URL.
 - For `--announce`: a dedicated low-value key that pays a little gas. Easiest is a nustuf-generated wallet: run `nustuf wallet show --role seller`, and if none exists run `nustuf wallet create --role seller --network <caip2>` and tell the user to send a little ETH on that network to the printed address. The seller wallet's address also works as `--pay-to`.
-- For mainnet payments: CDP keys (see the README). To try without them, sell on Base Sepolia with `--network eip155:84532` and announce with `--testnet`.
+- For mainnet payments: CDP keys (see the README). To try without them (demos, tests), sell on Base Sepolia with `--network eip155:84532`.
 
 ## Commands
 
@@ -55,7 +55,11 @@ nustuf publish \
   --description "Exclusive release"
 ```
 
-Add `--network eip155:84532 --testnet` to sell and list on Base Sepolia.
+The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file.
+
+### One network for everything
+
+`--network` decides where USDC is paid, and `--announce` lists the drop on that same chain, with the gas check also run there. Add `--network eip155:84532` to sell and list on Base Sepolia; do not add `--testnet` to `publish`. If `--testnet` or `NUSTUF_REGISTRY_CHAIN` asks for a different chain than `--network`, publish exits with an error rather than listing a testnet drop on mainnet (or the reverse). Only standalone `nustuf announce` uses `--testnet`.
 
 ### Which key signs the announcement
 
@@ -70,7 +74,7 @@ No other file is read (a stray `~/.nustuf/deployer.key`, for example, is ignored
 
 ### Gas check
 
-Before going live, publish checks the signer's ETH on the registry chain. With no ETH it exits before serving anything, naming the address and chain; fund it and rerun. To check yourself, match the chain: `nustuf wallet show --role seller --testnet` for Base Sepolia. Without `--testnet` it shows Base mainnet, which says nothing about Sepolia gas. The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file.
+Before going live, publish checks the signer's ETH on the registry chain. With no ETH it exits before serving anything, naming the address and chain; fund it and rerun. To check yourself, match the chain: `nustuf wallet show --role seller --testnet` for Base Sepolia. Without `--testnet` it shows Base mainnet, which says nothing about Sepolia gas.
 
 ### Confirming the listing
 
@@ -145,7 +149,7 @@ After a successful publish, if the user chose values that differ from the profil
 
 If the `AskUserQuestion` tool is available (Claude Code), collect the inputs with it instead of free-form prose. Batch up to 4 questions per call, and put the recommended option first, labelled "(Recommended)". "Other" is added automatically, so presets never block a custom value.
 
-- **Network** — "Base mainnet (Recommended)" or "Base Sepolia testnet (free, for trying it out)". Ask this first; it decides the rest.
+- **Network** — "Base mainnet (Recommended)" or "Base Sepolia testnet (free, for trying it out)". Ask this first; it decides the payment chain, the listing chain and where the signer needs gas. If the user already named a network ("accept USDC on Base Sepolia"), use it for all three without asking again.
 - **Price in USDC** — presets `0.50`, `1`, `5`, `10`.
 - **Sale window** — presets `1h`, `24h (Recommended)`, `7d`, `30d`.
 - **Visibility** — "Public and listed on-chain (discoverable)", "Public, not listed", or "Private". Warn that on-chain announcement is permanent. Public exposure still needs the explicit consent phrase.

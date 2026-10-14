@@ -37,7 +37,7 @@ import {
   startTunnel,
   tunnelPreflight,
 } from "./tunnel.js";
-import { announceRelease, checkAnnounceGas, computeFileHash, registryUsesTestnet, resolveSigner } from "./announce.js";
+import { announceRelease, checkAnnounceGas, computeFileHash, resolvePublishRegistryChain, resolveSigner } from "./announce.js";
 const { Select, Input } = enquirer;
 const HiddenCodePrompt = enquirer["Pass" + "word"];
 
@@ -80,7 +80,7 @@ function usageAndExit(code = 1, hint = "") {
   console.log("  --title <text>             Registry title (default: --og-title, then the file name)");
   console.log("  --description <text>       Registry description (default: --og-description)");
   console.log("  --private-key-file <path>  Key that signs the announcement (else DEPLOYER_PRIVATE_KEY, the seller wallet, .locus.json)");
-  console.log("  --testnet                  Announce on Base Sepolia (default: Base mainnet, costs gas)");
+  console.log("  The listing goes on the same chain as --network (Base Sepolia payments list on Base Sepolia).");
   console.log("");
   console.log(outUi.section("Notes"));
   console.log("  --public uses Tailscale Funnel by default (stable https://<host>.ts.net URL; needs Tailscale installed and logged in).");
@@ -1536,7 +1536,7 @@ async function main() {
         privateKey: signer.privateKey,
         signer: signer.address,
         signerSource: signer.source,
-        useTestnet: registryUsesTestnet(args),
+        useTestnet: resolvePublishRegistryChain({ network, args }).useTestnet,
         priceUsdc: Number(prompted.price),
         expiresAt: saleEndTsFixed,
         title: textArg("title") || ogTitle || path.basename(artifactPath),
