@@ -70,6 +70,8 @@ function describeRun(raw) {
     secondsUntilStop: alive && hardStopTs ? Math.max(0, hardStopTs - now) : null,
     restartCount: raw.restartCount ?? 0,
     lastExitReason: raw.lastExitReason || null,
+    // On-chain listing: { status, signer, signerSource, chain, txHash, explorerUrl, error }, or null.
+    announce: raw.announce || null,
     updatedAtTs: raw.updatedAtTs ?? null,
   };
 }

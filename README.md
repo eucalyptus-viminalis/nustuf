@@ -84,7 +84,7 @@ A full testnet run, with payments and the listing both on Base Sepolia:
 nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public --network eip155:84532 --announce --testnet --title "My Track"
 ```
 
-The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file. It is signed with `DEPLOYER_PRIVATE_KEY` (or `--private-key-file`) and written to Base mainnet by default, which costs a little gas; add `--testnet` for Base Sepolia. If the announce fails, the drop stays live and nustuf prints the `nustuf announce` command to retry by hand.
+The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file. It is signed by the first key found among `--private-key-file`, `DEPLOYER_PRIVATE_KEY` (shell or `.env`), the seller wallet and `.locus.json`; the publish summary prints the signer address and its balance. It is written to Base mainnet by default, which costs a little gas; add `--testnet` for Base Sepolia. If the signer has no ETH on that chain, publish exits before going live. The announce result (tx hash or error) shows up in `nustuf status --json`. If the announce fails, the drop stays live and nustuf prints the `nustuf announce` command to retry by hand.
 
 > **Note:** `nustuf publish` launches an interactive wizard by default. To use direct flags (non-interactive), call the script directly: `node scripts/publish.js --file <path> --price <usdc> --window <duration> --pay-to <address> [--public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE]`
 
@@ -235,6 +235,8 @@ pnpm test:contracts   # Foundry tests for NustufRegistry
 ```
 
 The integration tests run the server against a fake x402 facilitator on localhost, so they need no wallet, network access or credentials. They check that an unpaid download gets `402 Payment Required` with the right payment requirements, and that download codes are enforced. `pnpm test` needs Node 21 or later.
+
+The commands that spend money or write to the registry have their own tests. `test/cli_inputs.test.js` runs `nustuf buy` and checks that bad URLs, `--out` paths, download-code and key inputs fail before any request or payment. `test/announce.test.js` checks the `nustuf announce` plan (price to USDC base units, expiry, URL and content-hash validation), the signer-key order and the gas check. CI runs all of it on every push and pull request.
 
 ## Status
 

@@ -2,7 +2,7 @@
 name: nustuf-publish
 description: Publish content to the nustuf marketplace behind an x402 payment gate and announce on-chain for discovery.
 compatibility: Requires access to the internet
-version: 0.9.0
+version: 0.10.0
 metadata:
   openclaw:
     emoji: 📡
@@ -34,7 +34,7 @@ Publish content behind an x402 payment gate and announce the release on-chain so
 
 - `nustuf` installed from GitHub (see the install block above) and `npm link`ed or installed globally.
 - Tailscale installed and logged in for `--public` (see "Tailscale setup" in the README: MagicDNS, HTTPS certificates and Funnel must be enabled). Without Tailscale, add `--tunnel cloudflared` for a temporary URL.
-- For `--announce`: a dedicated low-value key that pays a little gas. Easiest is a nustuf-generated wallet: run `nustuf wallet show --role seller`, and if none exists run `nustuf wallet create --role seller --network <caip2>` and tell the user to send a little ETH on that network to the printed address. `--announce` uses it automatically. Alternatives: `DEPLOYER_PRIVATE_KEY` or `--private-key-file`. The seller wallet's address also works as `--pay-to`.
+- For `--announce`: a dedicated low-value key that pays a little gas. Easiest is a nustuf-generated wallet: run `nustuf wallet show --role seller`, and if none exists run `nustuf wallet create --role seller --network <caip2>` and tell the user to send a little ETH on that network to the printed address. The seller wallet's address also works as `--pay-to`.
 - For mainnet payments: CDP keys (see the README). To try without them, sell on Base Sepolia with `--network eip155:84532` and announce with `--testnet`.
 
 ## Commands
@@ -55,7 +55,32 @@ nustuf publish \
   --description "Exclusive release"
 ```
 
-Add `--network eip155:84532 --testnet` to sell and list on Base Sepolia. The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file.
+Add `--network eip155:84532 --testnet` to sell and list on Base Sepolia.
+
+### Which key signs the announcement
+
+nustuf uses the first of these it finds. Do not guess; the publish summary prints the result as `announce_signer: 0x… (<source>, <balance> ETH)`.
+
+1. `--private-key-file <path>`
+2. `DEPLOYER_PRIVATE_KEY`, from the shell or a `.env` in the working directory
+3. The seller wallet, `~/.nustuf/wallets/seller.key`
+4. `ownerPrivateKey` in `.locus.json` in the working directory
+
+No other file is read (a stray `~/.nustuf/deployer.key`, for example, is ignored).
+
+### Gas check
+
+Before going live, publish checks the signer's ETH on the registry chain. With no ETH it exits before serving anything, naming the address and chain; fund it and rerun. To check yourself, match the chain: `nustuf wallet show --role seller --testnet` for Base Sepolia. Without `--testnet` it shows Base mainnet, which says nothing about Sepolia gas. The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file.
+
+### Confirming the listing
+
+The announcement runs in the background after the public URL comes up. `nustuf publish` keeps running for the whole sale window, so do not wait for it to exit and never pipe it through `tail`, `head` or anything else that buffers until exit. Start it in the background with output to a log file, then read the result from:
+
+```bash
+nustuf status --json
+```
+
+Each run has an `announce` object: `status` (`pending`, `submitted`, `confirmed`, `failed`), `signer`, `signerSource`, `chain`, `txHash`, `explorerUrl` and `error`. Report the signer and the explorer link to the user once it is `confirmed`. If it is `failed`, report `error`.
 
 If the announcement fails, the drop stays live and nustuf prints a `nustuf announce --url ... --price ... --expires ... --title ...` command. Run that by hand to retry. nustuf announces a drop once, on its first public URL; if the URL changes (a cloudflared restart, a renamed machine or tailnet) it warns and prints the command instead of writing a second listing.
 
@@ -159,25 +184,10 @@ This makes the release discoverable by any agent running `nustuf-discover`.
 
 `nustuf status --json` lists everything this machine is serving (title, price, URL, time left). Run it before publishing to avoid port conflicts, and when the user asks what is live. `nustuf stop <id>` or `nustuf stop all` ends a drop; confirm with the user before stopping anything.
 
-## Response format
+## Reporting back
 
-```json
-{
-  "success": true,
-  "release": {
-    "id": "0x...",
-    "url": "https://<machine>.<tailnet>.ts.net/",
-    "price": "0.50",
-    "expiresAt": "2026-03-18T07:00:00Z",
-    "registryTx": "https://basescan.org/tx/0x..."
-  },
-  "gate": {
-    "status": "live",
-    "accessModes": ["payment"]
-  }
-}
-```
+After publishing, tell the user the public URL, price, network, payout address and time left (from `nustuf status --json`). If it was announced, also give the signer address and its source, and the announce status with the explorer link or error.
 
 ## Runtime
 
-Uses persistent background process (launchd/systemd/tmux) to keep the gate alive for the sale window duration.
+`nustuf publish` stays in the foreground for the whole sale window. Run it in the background (e.g. `nustuf publish ... > ~/.nustuf/publish.log 2>&1 &`, or launchd/systemd/tmux) and use `nustuf status --json` or the log to follow it. `nustuf stop <id>` ends it.

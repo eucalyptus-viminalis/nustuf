@@ -7,7 +7,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { createWalletClient, createPublicClient, http, parseUnits } from "viem";
+import { createWalletClient, createPublicClient, formatEther, http, parseUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 import { createUi } from "./ui.js";
@@ -96,36 +96,60 @@ export function registryUsesTestnet(args = {}) {
   return Boolean(args.testnet) || REGISTRY_CHAIN === "base-sepolia";
 }
 
-export function loadPrivateKey(args) {
-  // Check args first
-  if (args["private-key-file"]) {
-    const keyPath = path.resolve(process.cwd(), args["private-key-file"]);
-    const content = fs.readFileSync(keyPath, "utf8").trim().split("\n")[0];
-    return content.startsWith("0x") ? content : `0x${content}`;
-  }
-  
-  // Check env
-  if (process.env.DEPLOYER_PRIVATE_KEY) {
-    const key = process.env.DEPLOYER_PRIVATE_KEY.trim();
-    return key.startsWith("0x") ? key : `0x${key}`;
-  }
-  
-  // Check the wallet `nustuf wallet create --role seller` generated
-  const walletKey = readWalletKey("seller");
-  if (walletKey) return walletKey;
+function normalizeHexKey(raw) {
+  const key = String(raw).trim().split(/\r?\n/, 1)[0].trim();
+  return key.startsWith("0x") ? key : `0x${key}`;
+}
 
-  // Check .locus.json
-  const locusPath = path.resolve(process.cwd(), ".locus.json");
+// Resolves the key that signs (and pays gas for) the announcement, and says where it came from,
+// so the CLI can print the signer address instead of leaving the user to guess.
+// Order: --private-key-file, DEPLOYER_PRIVATE_KEY (shell or .env), seller wallet, .locus.json.
+export function resolveSigner(args = {}, { env = process.env, cwd = process.cwd() } = {}) {
+  const found = (privateKey, source) => ({ privateKey, source, address: privateKeyToAccount(privateKey).address });
+
+  if (args["private-key-file"]) {
+    const keyPath = path.resolve(cwd, args["private-key-file"]);
+    return found(normalizeHexKey(fs.readFileSync(keyPath, "utf8")), "--private-key-file");
+  }
+
+  if (env.DEPLOYER_PRIVATE_KEY) return found(normalizeHexKey(env.DEPLOYER_PRIVATE_KEY), "DEPLOYER_PRIVATE_KEY");
+
+  const walletKey = readWalletKey("seller");
+  if (walletKey) return found(walletKey, "seller wallet");
+
+  const locusPath = path.resolve(cwd, ".locus.json");
   if (fs.existsSync(locusPath)) {
     try {
       const data = JSON.parse(fs.readFileSync(locusPath, "utf8"));
-      if (data.ownerPrivateKey) {
-        return data.ownerPrivateKey;
-      }
+      if (data.ownerPrivateKey) return found(normalizeHexKey(data.ownerPrivateKey), ".locus.json");
     } catch {}
   }
-  
+
   throw new Error("No private key found. Use --private-key-file, set DEPLOYER_PRIVATE_KEY, or run `nustuf wallet create --role seller` and fund it");
+}
+
+export function loadPrivateKey(args) {
+  return resolveSigner(args).privateKey;
+}
+
+async function rpcBalance(address, chain) {
+  return createPublicClient({ chain, transport: http() }).getBalance({ address });
+}
+
+// Checks the signer has gas on the chain the announcement goes to. "unknown" (RPC trouble)
+// is reported but not fatal; "empty" means the announce is certain to fail.
+export async function checkAnnounceGas({ address, useTestnet = false, getBalance = rpcBalance }) {
+  const chain = getChain(useTestnet);
+  try {
+    const balanceWei = await getBalance(address, chain);
+    return {
+      status: balanceWei > 0n ? "ok" : "empty",
+      chainName: chain.name,
+      balanceEth: formatEther(balanceWei),
+    };
+  } catch (err) {
+    return { status: "unknown", chainName: chain.name, error: err?.shortMessage || err?.message || String(err) };
+  }
 }
 
 export async function announceRelease(options) {
@@ -139,6 +163,9 @@ export async function announceRelease(options) {
     useTestnet = false,
     privateKey,
     registryAddress = REGISTRY_ADDRESS,
+    walletClient: walletClientOverride,
+    publicClient: publicClientOverride,
+    onSubmitted,
   } = options;
 
   if (!registryAddress) {
@@ -148,22 +175,15 @@ export async function announceRelease(options) {
   const chain = getChain(useTestnet);
   const account = privateKeyToAccount(privateKey);
 
-  const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(),
-  });
-
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(),
-  });
+  const walletClient = walletClientOverride || createWalletClient({ account, chain, transport: http() });
+  const publicClient = publicClientOverride || createPublicClient({ chain, transport: http() });
 
   // Convert price to USDC units (6 decimals)
   const priceUnits = parseUnits(String(priceUsdc), 6);
 
   console.log(outUi.statusLine("info", `Announcing release to ${chain.name}...`));
   console.log(outUi.statusLine("info", `Registry: ${registryAddress}`));
+  console.log(outUi.statusLine("info", `From: ${account.address}`));
   console.log(outUi.statusLine("info", `URL: ${url}`));
   console.log(outUi.statusLine("info", `Price: ${priceUsdc} USDC`));
 
@@ -182,6 +202,7 @@ export async function announceRelease(options) {
   });
 
   console.log(outUi.statusLine("info", `Transaction submitted: ${hash}`));
+  if (onSubmitted) onSubmitted(hash);
 
   // Wait for confirmation
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -194,6 +215,7 @@ export async function announceRelease(options) {
   console.log(outUi.statusLine("info", `Explorer: ${explorerUrl}`));
 
   return {
+    from: account.address,
     transactionHash: hash,
     blockNumber: receipt.blockNumber,
     explorerUrl,
@@ -260,7 +282,16 @@ async function main() {
     console.log(outUi.statusLine("info", `Computed content hash: ${plan.contentHash}`));
   }
 
-  const privateKey = loadPrivateKey(args);
+  const signer = resolveSigner(args);
+  console.log(outUi.statusLine("info", `Signer: ${signer.address} (${signer.source})`));
+  const gas = await checkAnnounceGas({ address: signer.address, useTestnet: plan.useTestnet });
+  if (gas.status === "empty") {
+    throw new Error(`Signer ${signer.address} has no ETH on ${gas.chainName} to pay gas. Fund it and retry.`);
+  }
+  if (gas.status === "unknown") {
+    console.log(outUi.statusLine("warn", `Could not check the signer's ${gas.chainName} balance (${gas.error}); trying anyway.`));
+  }
+  const privateKey = signer.privateKey;
 
   await announceRelease({
     url: plan.url,

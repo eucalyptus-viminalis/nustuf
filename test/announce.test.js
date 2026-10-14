@@ -76,3 +76,110 @@ test("--file is hashed with SHA-256; explicit --content-hash wins", () => {
   const explicit = "0x" + "cd".repeat(32);
   assert.equal(plan({ file, "content-hash": explicit }).contentHash, explicit);
 });
+
+// --- Signer resolution: an agent must be able to tell which wallet pays the gas. ---
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { checkAnnounceGas, resolveSigner, announceRelease } from "../scripts/announce.js";
+
+function signerSandbox() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nustuf-signer-"));
+  const home = path.join(dir, "home");
+  fs.mkdirSync(path.join(home, ".nustuf", "wallets"), { recursive: true });
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  const writeSeller = () => {
+    const key = generatePrivateKey();
+    fs.writeFileSync(path.join(home, ".nustuf", "wallets", "seller.key"), `${key}\n`);
+    return privateKeyToAccount(key).address;
+  };
+  return { dir, writeSeller, restore: () => { process.env.HOME = prevHome; } };
+}
+
+test("resolveSigner: seller wallet is used when no key is passed", (t) => {
+  const sb = signerSandbox();
+  t.after(sb.restore);
+  const address = sb.writeSeller();
+  const s = resolveSigner({}, { env: {}, cwd: sb.dir });
+  assert.equal(s.address, address);
+  assert.equal(s.source, "seller wallet");
+  assert.match(s.privateKey, /^0x[0-9a-f]{64}$/);
+});
+
+test("resolveSigner: DEPLOYER_PRIVATE_KEY beats the seller wallet", (t) => {
+  const sb = signerSandbox();
+  t.after(sb.restore);
+  sb.writeSeller();
+  const key = generatePrivateKey();
+  const s = resolveSigner({}, { env: { DEPLOYER_PRIVATE_KEY: key.slice(2) }, cwd: sb.dir });
+  assert.equal(s.address, privateKeyToAccount(key).address);
+  assert.equal(s.source, "DEPLOYER_PRIVATE_KEY");
+});
+
+test("resolveSigner: --private-key-file beats everything", (t) => {
+  const sb = signerSandbox();
+  t.after(sb.restore);
+  sb.writeSeller();
+  const key = generatePrivateKey();
+  const file = path.join(sb.dir, "k.key");
+  fs.writeFileSync(file, `${key}\n`);
+  const s = resolveSigner({ "private-key-file": file }, { env: { DEPLOYER_PRIVATE_KEY: generatePrivateKey() }, cwd: sb.dir });
+  assert.equal(s.address, privateKeyToAccount(key).address);
+  assert.equal(s.source, "--private-key-file");
+});
+
+test("resolveSigner: .locus.json is the last fallback; nothing found throws", (t) => {
+  const sb = signerSandbox();
+  t.after(sb.restore);
+  assert.throws(() => resolveSigner({}, { env: {}, cwd: sb.dir }), /No private key found/);
+  const key = generatePrivateKey();
+  fs.writeFileSync(path.join(sb.dir, ".locus.json"), JSON.stringify({ ownerPrivateKey: key }));
+  const s = resolveSigner({}, { env: {}, cwd: sb.dir });
+  assert.equal(s.address, privateKeyToAccount(key).address);
+  assert.equal(s.source, ".locus.json");
+});
+
+// --- Gas preflight: an empty signer must be caught before the drop goes live. ---
+const ADDR = "0x000000000000000000000000000000000000dEaD";
+
+test("checkAnnounceGas: zero balance is empty, on the chain asked for", async () => {
+  let asked;
+  const r = await checkAnnounceGas({
+    address: ADDR,
+    useTestnet: true,
+    getBalance: async (a, chain) => { asked = { a, chain: chain.id }; return 0n; },
+  });
+  assert.equal(r.status, "empty");
+  assert.equal(r.chainName, "Base Sepolia");
+  assert.deepEqual(asked, { a: ADDR, chain: 84532 });
+});
+
+test("checkAnnounceGas: positive balance is ok; RPC failure is unknown, not fatal", async () => {
+  const ok = await checkAnnounceGas({ address: ADDR, useTestnet: false, getBalance: async () => 10n ** 15n });
+  assert.equal(ok.status, "ok");
+  assert.equal(ok.balanceEth, "0.001");
+  assert.equal(ok.chainName, "Base");
+  const down = await checkAnnounceGas({ address: ADDR, getBalance: async () => { throw new Error("rpc down"); } });
+  assert.equal(down.status, "unknown");
+  assert.match(down.error, /rpc down/);
+});
+
+// --- announceRelease reports who signed and the tx hash as soon as it is submitted. ---
+test("announceRelease: returns the sender and reports the hash before confirmation", async () => {
+  const key = generatePrivateKey();
+  const hash = "0x" + "11".repeat(32);
+  const events = [];
+  const res = await announceRelease({
+    url: "https://drop.example.com/",
+    priceUsdc: "0.5",
+    expiresAt: NOW + 3600,
+    useTestnet: true,
+    privateKey: key,
+    walletClient: { writeContract: async () => { events.push("write"); return hash; } },
+    publicClient: { waitForTransactionReceipt: async () => { events.push("receipt"); return { blockNumber: 7n }; } },
+    onSubmitted: (h) => events.push(`submitted:${h}`),
+  });
+  assert.deepEqual(events, ["write", `submitted:${hash}`, "receipt"]);
+  assert.equal(res.from, privateKeyToAccount(key).address);
+  assert.equal(res.transactionHash, hash);
+  assert.equal(res.explorerUrl, `https://sepolia.basescan.org/tx/${hash}`);
+});

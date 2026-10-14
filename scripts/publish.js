@@ -37,7 +37,7 @@ import {
   startTunnel,
   tunnelPreflight,
 } from "./tunnel.js";
-import { announceRelease, computeFileHash, loadPrivateKey, registryUsesTestnet } from "./announce.js";
+import { announceRelease, checkAnnounceGas, computeFileHash, registryUsesTestnet, resolveSigner } from "./announce.js";
 const { Select, Input } = enquirer;
 const HiddenCodePrompt = enquirer["Pass" + "word"];
 
@@ -1182,10 +1182,33 @@ async function supervisorMain({
       ` --title ${JSON.stringify(announcePlan.title)}${announcePlan.useTestnet ? " --testnet" : ""}`;
     if (announcedUrl === null) {
       announcedUrl = promoUrl;
-      announceRelease({ ...announcePlan, url: promoUrl }).catch((err) => {
-        logError(`On-chain announce failed: ${err?.shortMessage || err?.message || String(err)}`);
-        logWarn(`The drop is still live. Retry with: ${retryCmd(promoUrl)}`);
+      // Recorded in the run state so `nustuf status --json` shows how the listing went.
+      const recordAnnounce = (fields) => {
+        runState.announce = { ...runState.announce, ...fields };
+        runState = persistRunState(runStatePaths, runState);
+      };
+      recordAnnounce({
+        status: "pending",
+        url: promoUrl,
+        signer: announcePlan.signer,
+        signerSource: announcePlan.signerSource,
+        chain: announcePlan.useTestnet ? "Base Sepolia" : "Base",
+        txHash: null,
+        explorerUrl: null,
+        error: null,
       });
+      announceRelease({
+        ...announcePlan,
+        url: promoUrl,
+        onSubmitted: (txHash) => recordAnnounce({ status: "submitted", txHash }),
+      })
+        .then((res) => recordAnnounce({ status: "confirmed", txHash: res.transactionHash, explorerUrl: res.explorerUrl }))
+        .catch((err) => {
+          const message = err?.shortMessage || err?.message || String(err);
+          recordAnnounce({ status: "failed", error: message });
+          logError(`On-chain announce failed: ${message}`);
+          logWarn(`The drop is still live. Retry with: ${retryCmd(promoUrl)}`);
+        });
     } else if (promoUrl !== announcedUrl) {
       logWarn(`Public URL changed after a restart; the registry still lists ${announcedUrl}.`);
       logWarn(`Re-announce with: ${retryCmd(promoUrl)}`);
@@ -1517,8 +1540,11 @@ async function main() {
     }
     try {
       const textArg = (key) => (typeof args[key] === "string" ? args[key] : "");
+      const signer = resolveSigner(args);
       announcePlan = {
-        privateKey: loadPrivateKey(args),
+        privateKey: signer.privateKey,
+        signer: signer.address,
+        signerSource: signer.source,
         useTestnet: registryUsesTestnet(args),
         priceUsdc: Number(prompted.price),
         expiresAt: saleEndTsFixed,
@@ -1530,6 +1556,17 @@ async function main() {
       logError(`--announce: ${err.message || String(err)}`);
       process.exit(1);
     }
+    // An unfunded signer would only fail after the drop is live, in the background. Catch it now.
+    const gas = await checkAnnounceGas({ address: announcePlan.signer, useTestnet: announcePlan.useTestnet });
+    if (gas.status === "empty") {
+      logError(`--announce: signer ${announcePlan.signer} (${announcePlan.signerSource}) has no ETH on ${gas.chainName} to pay gas.`);
+      logError("Fund that address, or drop --announce and run `nustuf announce` later.");
+      process.exit(1);
+    }
+    if (gas.status === "unknown") {
+      logWarn(`--announce: could not check the signer's ${gas.chainName} balance (${gas.error}); continuing.`);
+    }
+    announcePlan.signerBalanceEth = gas.balanceEth ?? null;
   }
 
   // Spawn the server with explicit env so there's no confusion.
@@ -1580,6 +1617,12 @@ async function main() {
     { key: "ended_window", value: `${effectiveEndedWindowSeconds}s` },
     announcePlan
       ? { key: "announce", value: `on-chain registry (${announcePlan.useTestnet ? "Base Sepolia" : "Base"}), title "${announcePlan.title}"` }
+      : null,
+    announcePlan
+      ? {
+          key: "announce_signer",
+          value: `${announcePlan.signer} (${announcePlan.signerSource}${announcePlan.signerBalanceEth != null ? `, ${announcePlan.signerBalanceEth} ETH` : ""})`,
+        }
       : null,
   ];
   for (const line of outUi.formatRows(runtimeRows)) {

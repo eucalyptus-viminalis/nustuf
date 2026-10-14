@@ -21,6 +21,11 @@ function formatDuration(seconds) {
   return `${s}s`;
 }
 
+function formatAnnounce(a) {
+  const detail = a.status === "failed" ? a.error : a.explorerUrl || a.txHash;
+  return `${a.status} on ${a.chain} from ${a.signer} (${a.signerSource})${detail ? ` · ${detail}` : ""}`;
+}
+
 function swiftbarText(value) {
   // SwiftBar treats "|" as the parameter separator and newlines as line breaks.
   return String(value ?? "").replace(/\|/g, "¦").replace(/[\r\n]+/g, " ").trim();
@@ -115,6 +120,7 @@ function runStatus(argv) {
       { key: "stops in", value: run.secondsUntilStop !== null ? formatDuration(run.secondsUntilStop) : null },
       { key: "pid", value: run.pid },
       { key: "restarts", value: run.restartCount || null },
+      { key: "announce", value: run.announce ? formatAnnounce(run.announce) : null },
     ];
     for (const line of outUi.formatRows(rows)) console.log(line);
   }
