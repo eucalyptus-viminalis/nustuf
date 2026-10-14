@@ -7,12 +7,10 @@ import { createUi } from "./ui.js";
 const outUi = createUi(process.stdout);
 const errUi = createUi(process.stderr);
 
-// Registry contract address (TODO: deploy and update)
 const DEFAULT_REGISTRY_ADDRESS = "0x134597d9Cc6270571C2b8245c4235f7838C0d65D";
 const REGISTRY_ADDRESS = process.env.NUSTUF_REGISTRY_ADDRESS || DEFAULT_REGISTRY_ADDRESS;
 const REGISTRY_CHAIN = process.env.NUSTUF_REGISTRY_CHAIN || "base";
 
-// Minimal ABI for reading releases
 const REGISTRY_ABI = [
   {
     name: "getActiveReleases",
@@ -103,7 +101,6 @@ function getClient(useTestnet) {
 }
 
 function formatPrice(priceUsdc) {
-  // priceUsdc is in 6 decimals (USDC standard)
   const formatted = (Number(priceUsdc) / 1e6).toFixed(2);
   return `${formatted} USDC`;
 }
@@ -122,7 +119,6 @@ function formatExpiry(expiresAt) {
 async function fetchReleases(client, registryAddress, options) {
   const limit = options.limit || 20;
   
-  // Get active release IDs
   let releaseIds;
   
   if (options.creator) {
@@ -141,7 +137,6 @@ async function fetchReleases(client, registryAddress, options) {
     });
   }
   
-  // Fetch details for each release
   const releases = [];
   for (const id of releaseIds.slice(0, limit)) {
     try {
@@ -152,13 +147,11 @@ async function fetchReleases(client, registryAddress, options) {
         args: [id],
       });
       
-      // Filter by max price if specified
       if (options.maxPrice) {
         const maxPriceUsdc = BigInt(Math.floor(parseFloat(options.maxPrice) * 1e6));
         if (release.priceUsdc > maxPriceUsdc) continue;
       }
       
-      // Filter out inactive/expired if --active
       if (options.active) {
         if (!release.active) continue;
         if (Number(release.expiresAt) * 1000 < Date.now()) continue;
@@ -177,7 +170,6 @@ async function fetchReleases(client, registryAddress, options) {
         active: release.active,
       });
     } catch (err) {
-      // Skip invalid releases
       console.error(errUi.statusLine("warn", `Failed to fetch release ${id}: ${err.message}`));
     }
   }
@@ -235,7 +227,6 @@ async function main() {
     console.log("  • Get recommendations based on history");
     console.log("");
     
-    // For now, show mock data for demo purposes
     if (args.demo) {
       const mockReleases = [
         {
@@ -260,7 +251,7 @@ async function main() {
   console.log(outUi.statusLine("info", `Querying ${useTestnet ? "Base Sepolia" : "Base"} registry...`));
   
   const releases = await fetchReleases(client, REGISTRY_ADDRESS, {
-    active: args.active !== false, // default true
+    active: args.active !== false,
     creator: args.creator,
     maxPrice: args["max-price"],
     limit: parseInt(args.limit) || 20,

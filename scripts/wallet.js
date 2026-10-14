@@ -145,7 +145,6 @@ async function runShow(args) {
 
 function runExport(args) {
   const role = resolveRole(args, { required: true });
-  // The key must never land in an agent's captured output or a log, so only print to a person.
   if (!input.isTTY || !output.isTTY) {
     return fail("`wallet export` only runs in an interactive terminal. Run it yourself, not through an agent.");
   }

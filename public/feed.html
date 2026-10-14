@@ -105,16 +105,14 @@
 
 <script type="module">
   const REGISTRY = '0x134597d9Cc6270571C2b8245c4235f7838C0d65D';
-  // Base mainnet by default; add ?network=sepolia (or ?testnet) for Base Sepolia
   const params = new URLSearchParams(location.search);
   const TESTNET = params.get('network') === 'sepolia' || params.has('testnet');
   const NETWORK_LABEL = TESTNET ? 'base sepolia' : 'base mainnet';
   const RPC = TESTNET ? 'https://sepolia.base.org' : 'https://mainnet.base.org';
   const SCAN = TESTNET ? 'https://sepolia.basescan.org' : 'https://basescan.org';
   const LOG_CHUNK = 500;
-  const LOOKBACK_BLOCKS = TESTNET ? 10000 : 2000; // ~5.5h on Sepolia, ~1h on mainnet (2s blocks)
+  const LOOKBACK_BLOCKS = TESTNET ? 10000 : 2000;
   
-  // ReleaseAnnounced event signature
   const EVENT_SIG = '0x' + await sha256('ReleaseAnnounced(bytes32,address,string,uint256,uint256)');
   
   async function sha256(text) {
@@ -123,30 +121,21 @@
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
   
-  // Use keccak256 instead — EVM uses keccak for event topics
-  // We'll just hardcode the topic hash since we can't easily keccak in browser
-  // keccak256("ReleaseAnnounced(bytes32,address,string,uint256,uint256)")
-  // Let's compute it via eth_call or just use the ABI approach
   
   const statusEl = document.getElementById('status');
   const feedEl = document.getElementById('feed');
   const emptyEl = document.getElementById('empty-msg');
   
-  // ABI for reading
   const ABI = {
     getActiveReleases: 'function getActiveReleases(uint256) view returns (bytes32[])',
     getRelease: 'function getRelease(bytes32) view returns (tuple(address creator, string url, uint256 priceUsdc, bytes32 contentHash, uint256 expiresAt, string title, string description, bool active))',
     allReleases: 'function allReleases(uint256) view returns (bytes32)',
   };
   
-  // Minimal ABI encoding helpers
   function encodeFunctionCall(sig, ...args) {
-    // keccak256 of function signature (first 4 bytes)
-    // We'll use a simple approach: call eth_call with data
-    return null; // We'll use a different approach
+    return null;
   }
   
-  // Use eth_call with raw ABI encoding
   async function rpcCall(method, params) {
     const res = await fetch(RPC, {
       method: 'POST',
@@ -158,11 +147,9 @@
     return json.result;
   }
   
-  // Get logs for ReleaseAnnounced events
   async function getAnnouncementLogs(fromBlock = null) {
     const latest = Number(BigInt(await rpcCall('eth_blockNumber', [])));
     const start = fromBlock ? Number(BigInt(fromBlock)) : Math.max(0, latest - LOOKBACK_BLOCKS);
-    // Public RPCs cap eth_getLogs ranges (Base Sepolia: 500 blocks), so query in chunks
     const ranges = [];
     for (let from = start; from <= latest; from += LOG_CHUNK) {
       ranges.push([from, Math.min(from + LOG_CHUNK - 1, latest)]);
@@ -175,19 +162,15 @@
     return chunks.flat();
   }
   
-  // Decode uint256 from hex
   function decodeUint(hex) {
     return BigInt('0x' + hex);
   }
   
-  // Decode address from 32-byte padded hex
   function decodeAddress(hex) {
     return '0x' + hex.slice(24);
   }
   
-  // Decode string from ABI-encoded data at offset
   function decodeStringAt(data, hexOffset) {
-    // hexOffset is already in hex chars (byte offset * 2)
     const len = Number(decodeUint(data.slice(hexOffset, hexOffset + 64)));
     if (len === 0) return '';
     const hexStr = data.slice(hexOffset + 64, hexOffset + 64 + len * 2);
@@ -220,17 +203,14 @@
   
   const seenIds = new Set();
   
-  // Fetch release details from contract (title, description)
   async function getRelease(releaseId) {
     const selector = '0x7f698e92';
     const paddedId = releaseId.slice(2).padStart(64, '0');
     const data = selector + paddedId;
     const result = await rpcCall('eth_call', [{ to: REGISTRY, data }, 'latest']);
     const rawHex = result.slice(2);
-    // Return is wrapped in an outer tuple offset — skip first 32-byte slot (0x20 pointer)
     const outerOffset = Number(decodeUint(rawHex.slice(0, 64))) * 2;
     const hex = rawHex.slice(outerOffset);
-    // Decode tuple: creator(address), url(string), priceUsdc(uint256), contentHash(bytes32), expiresAt(uint256), title(string), description(string), active(bool)
     const creator = decodeAddress('0x' + hex.slice(0, 64));
     const urlOffset = Number(decodeUint(hex.slice(64, 128))) * 2;
     const priceUsdc = decodeUint(hex.slice(128, 192));
@@ -270,7 +250,6 @@
     const txHash = log.transactionHash;
     const shortId = releaseId.slice(0, 10) + '…' + releaseId.slice(-6);
     
-    // Fetch full release details (title, description) from contract
     let title = '';
     let description = '';
     try {
@@ -305,9 +284,7 @@
     feedEl.insertBefore(el, feedEl.firstChild);
   }
   
-  // Initial load
   async function loadAll() {
-    // Poll from the block we loaded at, even when the feed starts empty
     let head = null;
     try {
       head = await rpcCall('eth_blockNumber', []);
@@ -315,7 +292,6 @@
       statusEl.textContent = `connected · ${logs.length} announcement${logs.length !== 1 ? 's' : ''} · last ${LOOKBACK_BLOCKS} blocks · ${NETWORK_LABEL}`;
       statusEl.className = 'status live';
       
-      // Render oldest first so newest end up on top
       for (const log of logs) {
         await renderRelease(log, false);
       }
@@ -328,11 +304,10 @@
     } catch (e) {
       statusEl.textContent = 'error: ' + e.message;
       statusEl.className = 'status error';
-      return head; // null if even the head lookup failed; poll() then uses the default lookback
+      return head;
     }
   }
   
-  // Poll for new events
   async function poll(fromBlock) {
     try {
       const nextBlock = fromBlock ? '0x' + (Number(BigInt(fromBlock)) + 1).toString(16) : null;
@@ -348,13 +323,12 @@
         statusEl.textContent = `connected · ${total} announcement${total !== 1 ? 's' : ''} · ${NETWORK_LABEL}`;
         statusEl.className = 'status live';
       }
-      return head; // advance so each poll only scans new blocks
+      return head;
     } catch {
       return fromBlock;
     }
   }
   
-  // Start
   let lastBlock = await loadAll();
   setInterval(async () => {
     lastBlock = await poll(lastBlock);

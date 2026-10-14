@@ -84,7 +84,6 @@ function toSafeJsonForScript(value) {
 
 const PORT = Number(process.env.PORT || 4021);
 
-// Mirror the Python env names (with a couple backwards-compatible aliases)
 const FACILITATOR_MODE = (process.env.FACILITATOR_MODE || "cdp_mainnet").trim();
 const CDP_API_KEY_ID = (process.env.CDP_API_KEY_ID || "").trim();
 const CDP_API_KEY_SECRET = (process.env.CDP_API_KEY_SECRET || "").trim();
@@ -115,7 +114,7 @@ const GRANT_SWEEP_SECONDS = parsePositiveInt(
   60,
 );
 
-const CONFIRMATION_POLICY = process.env.CONFIRMATION_POLICY || "confirmed"; // optimistic|confirmed
+const CONFIRMATION_POLICY = process.env.CONFIRMATION_POLICY || "confirmed";
 const CONFIRMATIONS_REQUIRED = Number(process.env.CONFIRMATIONS_REQUIRED || 1);
 
 const MIME_TYPE = process.env.PROTECTED_MIME || "application/octet-stream";
@@ -138,14 +137,11 @@ const SKILL_DESCRIPTION =
   "Buy and download nustuf content from promo or download links using the nustuf CLI tool";
 const SKILL_SOURCE = "github";
 const SKILL_INSTALL_COMMAND = "npx skills add eucalyptus-viminalis/nustuf";
-const CLI_INSTALL_COMMAND = "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g .";
+const CLI_INSTALL_COMMAND = "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && pnpm install && pnpm link --global";
 const WELL_KNOWN_CACHE_CONTROL = "public, max-age=60";
 const LEGACY_DISCOVERY_DEPRECATION =
   "Deprecated endpoint; use /.well-known/skills/index.json for RFC-compatible discovery.";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Nustuf Design System - Greyscale + Custom Fonts
-// ─────────────────────────────────────────────────────────────────────────────
 const NUSTUF_FONTS_CSS = `
 @font-face {
   font-family: 'Outward';
@@ -1073,8 +1069,6 @@ function renderOgPng(req) {
   return pngData.asPng();
 }
 
-// In-memory grants (v1). Later: SQLite.
-/** @type {Map<string, { token: string, expiresAt: number, downloadsLeft: number|null }>} */
 const GRANTS = new Map();
 
 function pruneExpiredGrants() {
@@ -1100,7 +1094,7 @@ function mintGrant() {
   GRANTS.set(token, {
     token,
     expiresAt: now() + WINDOW_SECONDS,
-    downloadsLeft: null, // null = unlimited
+    downloadsLeft: null,
   });
   return token;
 }
@@ -1137,15 +1131,12 @@ function sendArtifactStream(res) {
 const app = express();
 app.set("trust proxy", true);
 
-// Serve static fonts
 app.use("/fonts", express.static(path.join(__dirname, "..", "public", "fonts")));
 
-// Serve feed page
 app.get("/feed", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "feed.html"));
 });
 
-// x402 core server + HTTP wrapper
 let httpServer = null;
 if (REQUIRES_PAYMENT) {
   await preflightCdpAuth();
@@ -1159,7 +1150,6 @@ if (REQUIRES_PAYMENT) {
     new ExactEvmScheme(),
   );
 
-  // Route config for x402HTTPResourceServer
   const routes = {
     "GET /download": {
       accepts: [
@@ -1339,7 +1329,6 @@ app.head(`/.well-known/skills/${SKILL_NAME}/SKILL.md`, sendSkillMarkdown);
 app.get(`/.well-known/skills/${SKILL_NAME}/resource.json`, sendSkillResource);
 app.head(`/.well-known/skills/${SKILL_NAME}/resource.json`, sendSkillResource);
 
-// Well-known endpoint for agent skill discovery (RFC-inspired)
 app.get("/.well-known/nustuf", (req, res) => {
   const model = promoModel(req);
   const rfcResourcePath = rfcResourceUrl(model);
@@ -1393,19 +1382,15 @@ app.get("/.well-known/nustuf", (req, res) => {
   });
 });
 
-// Legacy alias — redirect to canonical nustuf endpoint
 app.get("/.well-known/leak", (req, res) => {
   res.redirect(301, "/.well-known/nustuf");
 });
 
-// Access gate for GET /download (download-code check, then optional x402 payment).
 app.use("/download", async (req, res, next) => {
   if (saleEnded()) {
     return res.status(410).json({ error: "release ended" });
   }
 
-  // If a valid token is supplied, skip x402 and let the handler serve the file.
-  // (Matches the Python implementation: token check happens before payment requirement.)
   if (typeof req.query.token === "string" && req.query.token.length > 0) {
     return next();
   }
@@ -1431,15 +1416,12 @@ app.use("/download", async (req, res, next) => {
 
   if (!REQUIRES_PAYMENT) return next();
 
-  // NOTE: because this middleware is mounted at "/download", Express strips the mount
-  // path and `req.path` becomes "/". x402 route matching needs the *full* path.
   const fullPath = `${req.baseUrl || ""}${req.path || ""}`;
 
   const adapter = {
     getHeader(name) {
       const v = req.get(name);
       if (v) return v;
-      // legacy support: treat X-PAYMENT as PAYMENT-SIGNATURE (same base64 JSON format)
       const lower = String(name).toLowerCase();
       if (lower === "payment-signature")
         return req.get("x-payment") || undefined;
@@ -1503,7 +1485,6 @@ app.use("/download", async (req, res, next) => {
     return res.status(result.response.status).send(result.response.body ?? "");
   }
 
-  // payment verified
   req.x402 = {
     paymentPayload: result.paymentPayload,
     paymentRequirements: result.paymentRequirements,
@@ -1518,7 +1499,6 @@ app.get("/download", async (req, res) => {
     return res.status(410).json({ error: "release ended" });
   }
 
-  // 1) If caller already has a valid access token, serve the artifact.
   const token =
     typeof req.query.token === "string" ? req.query.token : undefined;
   if (token) {
@@ -1527,13 +1507,10 @@ app.get("/download", async (req, res) => {
     return sendArtifactStream(res);
   }
 
-  // 2) No token.
   if (!REQUIRES_PAYMENT) {
     return sendArtifactStream(res);
   }
 
-  // If we got here with payment enabled, payment has been verified by middleware.
-  // If you want immediate UX, just mint token. If you want stronger guarantees, settle.
   if (CONFIRMATION_POLICY === "confirmed") {
     let settle;
     try {
@@ -1579,11 +1556,6 @@ app.get("/download", async (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Locus Direct Payment Verification (workaround for Locus x402/call bug)
-// Accepts a USDC transfer tx hash and verifies on-chain that the correct
-// amount was sent to the seller address.
-// ─────────────────────────────────────────────────────────────────────────────
 const USDC_TRANSFER_EVENT = parseAbi([
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 ]);
@@ -1617,11 +1589,9 @@ app.post("/download/verify-tx", express.json(), async (req, res) => {
       return res.status(402).json({ error: "transaction failed on-chain" });
     }
 
-    // Find USDC Transfer event to seller
     const transferLog = receipt.logs.find((log) => {
       if (log.address.toLowerCase() !== usdcAddress.toLowerCase()) return false;
       if (!log.topics || log.topics.length < 3) return false;
-      // topics[0] = Transfer event sig, topics[2] = to address (padded)
       const to = "0x" + log.topics[2].slice(26);
       return to.toLowerCase() === SELLER_PAY_TO.toLowerCase();
     });
@@ -1630,7 +1600,6 @@ app.post("/download/verify-tx", express.json(), async (req, res) => {
       return res.status(402).json({ error: "no USDC transfer to seller found in tx" });
     }
 
-    // Check amount (data field contains the uint256 value)
     const transferredAmount = BigInt(transferLog.data);
     if (transferredAmount < requiredAmount) {
       return res.status(402).json({
@@ -1640,14 +1609,12 @@ app.post("/download/verify-tx", express.json(), async (req, res) => {
       });
     }
 
-    // Check tx is recent (within window)
     const block = await client.getBlock({ blockNumber: receipt.blockNumber });
     const txAge = Math.floor(Date.now() / 1000) - Number(block.timestamp);
     if (txAge > WINDOW_SECONDS) {
       return res.status(402).json({ error: "transaction too old", age_seconds: txAge });
     }
 
-    // Payment verified — mint access token
     const t = mintGrant();
     const p = absArtifactPath();
 
@@ -1693,7 +1660,6 @@ const server = app.listen(PORT, () => {
   }
 });
 
-// Keep server running and handle errors
 server.on("error", (err) => {
   console.error(`Server error: ${err.message}`);
   process.exit(1);
@@ -1708,5 +1674,4 @@ process.on("unhandledRejection", (reason) => {
   console.error(`Unhandled rejection: ${reason}`);
 });
 
-// Prevent the process from exiting
 server.ref();

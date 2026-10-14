@@ -1,4 +1,3 @@
-// `nustuf status --json` is how agents learn whether a drop's on-chain announce went through.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

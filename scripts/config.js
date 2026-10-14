@@ -130,12 +130,10 @@ async function askOgField(rl, label, currentValue, fieldType) {
     : 'auto-generated description';
 
   if (!current) {
-    // No existing value - simple prompt
     const answer = (await rl.question(`${label} [blank to use ${defaultText}]: `)).trim();
     return answer;
   }
 
-  // Has existing value - use interactive select
   const prompt = new Select({
     name: label,
     message: `${label} (current: "${current}")`,
@@ -182,7 +180,6 @@ async function askDownloadCodeHash(rl, existingHash, accessMode) {
   return hashDownloadCode(raw);
 }
 
-// Profile flags settable without the wizard. Secrets (CDP keys, download code) are deliberately excluded.
 const PROFILE_FLAGS = {
   price: "priceUsd",
   window: "window",

@@ -11,7 +11,7 @@ contract NustufRegistryTest is Test {
     address other = makeAddr("other");
 
     string constant URL = "https://example.ts.net/download";
-    uint256 constant PRICE = 500_000; // 0.50 USDC
+    uint256 constant PRICE = 500_000;
     bytes32 constant HASH = keccak256("content");
 
     event ReleaseAnnounced(
@@ -123,7 +123,7 @@ contract NustufRegistryTest is Test {
 
     function test_getActiveReleases_skipsInactiveAndExpired() public {
         bytes32 live = _announce(creator, URL, 2 hours);
-        _announce(creator, "https://example.ts.net/short", 1 hours); // expires below
+        _announce(creator, "https://example.ts.net/short", 1 hours);
         bytes32 deactivated = _announce(other, URL, 2 hours);
 
         vm.prank(other);

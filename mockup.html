@@ -106,7 +106,6 @@ button.copy-btn:hover { background: #333; }
 .agent-quick-path ol { margin: 8px 0 8px 20px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #ccc; }
 .agent-quick-path p { margin: 8px 0 0; }
 
-/* Tweak controls */
 .controls {
   position: fixed;
   bottom: 20px;
@@ -140,7 +139,7 @@ button.copy-btn:hover { background: #333; }
         <li>Agent uses <code>nustuf buy &lt;url&gt; --locus</code></li>
         <li>Payment via Locus wallet, content downloaded</li>
       </ol>
-      <p>Don't have nustuf? <code>npm install -g nustuf</code></p>
+      <p>Don't have nustuf? <code>git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && pnpm install && pnpm link --global</code></p>
     </div>
 
     <h2>CLI</h2>
@@ -156,7 +155,6 @@ button.copy-btn:hover { background: #333; }
     </div>
   </main>
 
-  <!-- Live tweak controls -->
   <div class="controls">
     <strong>Background tweaks</strong>
     <label>Opacity: <span id="opVal">0.03</span>
@@ -180,7 +178,7 @@ button.copy-btn:hover { background: #333; }
   </div>
 
   <script>
-    const before = document.styleSheets[0].cssRules[3]; // body::before rule
+    const before = document.styleSheets[0].cssRules[3];
     const el = (id) => document.getElementById(id);
 
     function updateBg() {
@@ -199,7 +197,6 @@ button.copy-btn:hover { background: #333; }
       el('lhVal').textContent = lh;
       el('lsVal').textContent = ls;
 
-      // Update the ::before pseudo-element via CSS custom properties
       document.documentElement.style.setProperty('--bg-opacity', op);
       document.documentElement.style.setProperty('--bg-font-size', sz + 'px');
       document.documentElement.style.setProperty('--bg-rotation', rot + 'deg');
@@ -208,7 +205,6 @@ button.copy-btn:hover { background: #333; }
       document.documentElement.style.setProperty('--bg-letter-spacing', ls + 'px');
     }
 
-    // Override ::before with CSS custom properties
     const sheet = document.createElement('style');
     sheet.textContent = `
       body::before {

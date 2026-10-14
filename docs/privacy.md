@@ -20,7 +20,7 @@ File contents, payment payloads and download codes are encrypted end to end. TLS
 ## What is public
 
 - **Your machine and tailnet names.** Your drop's URL is `https://<machine>.<tailnet>.ts.net`, and the HTTPS certificate for that name is issued by a public certificate authority, so the name will almost certainly appear in public Certificate Transparency logs. Choose a machine name you are happy to publish. The default tailnet name is random (for example `tail1234`).
-- **On-chain data.** With `--announce`, the listing (URL, price, expiry, file hash) is public on Base. Payments are public on-chain.
+- **On-chain data.** With `--announce`, the listing (URL, price, expiry, title, description, file hash and the signer's address) is public on Base. Payments are public on-chain.
 
 ## Compared with a Cloudflare quick tunnel
 

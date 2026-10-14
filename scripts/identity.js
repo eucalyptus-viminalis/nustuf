@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Register a seller as an ERC-8004 agent (Identity Registry) so drops can be tied to a
- * portable on-chain identity. ERC-8004 is a draft standard; testnet only for now.
- */
 import "dotenv/config";
 import { createPublicClient, createWalletClient, formatEther, http, parseEventLogs } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -15,7 +11,6 @@ import { getWalletAddress } from "./wallet_store.js";
 const outUi = createUi(process.stdout);
 const errUi = createUi(process.stderr);
 
-// Identity Registry per chain. Base Sepolia was checked on-chain (ERC-721 "AgentIdentity").
 const IDENTITY_REGISTRIES = {
   "eip155:84532": { chain: baseSepolia, address: "0x8004A818BFB912233c491871b3d84c89A494BD9e", explorer: "https://sepolia.basescan.org" },
 };

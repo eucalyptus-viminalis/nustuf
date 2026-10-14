@@ -37,6 +37,7 @@ function printHelp() {
   console.log("  nustuf feed-ui [--port <port>] [--testnet] [--public [--tunnel <tailscale|cloudflared>]]");
   console.log("                                            Browse live releases in the browser");
   console.log("  nustuf buy <url> [options]                Purchase content");
+  console.log("  nustuf announce --url <url> [options]     List a drop in the on-chain registry");
   console.log("  nustuf host --config <path> [options]     Multi-host server");
   console.log("  nustuf status [--json] [--all]            Show what this machine is serving right now");
   console.log("  nustuf stop <id>|all                      Stop a published item (or everything)");
@@ -58,7 +59,8 @@ function printHelp() {
   console.log("  --announce                 List the drop on-chain once the public URL is live (needs --public)");
   console.log("");
   console.log(outUi.section("Buy Options"));
-  console.log("  --locus                    Pay via Locus wallet (recommended)");
+  console.log("  (default)                  Pay from the nustuf buyer wallet (nustuf wallet create --role buyer)");
+  console.log("  --locus                    Pay via Locus wallet");
   console.log("  --buyer-private-key-file   Pay with local key file");
   console.log("  --download-code <code>     Include download code");
   console.log("  --out <path>               Output file path");
@@ -72,8 +74,8 @@ function printHelp() {
   console.log(outUi.section("Examples"));
   console.log("  nustuf publish --file ./track.mp3 --price 0.50 --window 24h --pay-to 0x...");
   console.log("  nustuf discover --active");
-  console.log("  nustuf buy https://xxx.trycloudflare.com/ --locus");
-  console.log("  nustuf buy https://xxx.trycloudflare.com/ --download-code friends-only --locus");
+  console.log("  nustuf buy https://<machine>.<tailnet>.ts.net/");
+  console.log("  nustuf buy https://<machine>.<tailnet>.ts.net/ --download-code friends-only");
   console.log("");
   console.log(outUi.section("Locus Integration"));
   console.log("  Set LOCUS_API_KEY env var or create .locus.json with apiKey field.");
@@ -115,8 +117,6 @@ if (sub === "--version" || sub === "-v" || sub === "version") {
 }
 
 if (sub === "publish") {
-  // Use publish.js for publish (will rebrand later)
-  // The wizard needs a TTY; non-interactive runs (agents, CI) use direct flags.
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
   runSubcommand("publish.js", [...(interactive ? ["--wizard"] : []), ...process.argv.slice(3)]);
 } else if (sub === "buy") {
@@ -140,10 +140,8 @@ if (sub === "publish") {
 } else if (sub === "wallet") {
   runSubcommand("wallet.js", process.argv.slice(3));
 } else if (sub === "leak") {
-  // Backward compatibility
   runSubcommand("publish.js", process.argv.slice(3));
 } else {
-  // Default: show help
   printHelp();
   process.exit(1);
 }

@@ -39,7 +39,6 @@ function bestEffortChmod(targetPath, mode) {
   try {
     fs.chmodSync(targetPath, mode);
   } catch {
-    // best effort only
   }
 }
 
@@ -131,7 +130,6 @@ function normalizeDefaults(rawDefaults) {
   return defaults;
 }
 
-// ERC-8004 registrations keyed by "<caip2>:<registry address>".
 function normalizeIdentities(raw) {
   const out = {};
   if (!raw || typeof raw !== "object") return out;

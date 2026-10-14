@@ -72,32 +72,31 @@ function usageAndExit(code = 1, hint = "") {
   console.log(outUi.heading("nustuf publish"));
   console.log("");
   console.log(outUi.section("Usage"));
-  console.log(`  nustuf publish [--file <path>] [--access-mode <${ACCESS_MODE_VALUES.join("|")}>]`);
-  console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--tunnel <tailscale|cloudflared>] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
-  console.log(`  nustuf --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--tunnel <tailscale|cloudflared>] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
+  console.log("  nustuf publish                       Interactive wizard (in a terminal)");
+  console.log(`  nustuf publish --file <path> [--access-mode <${ACCESS_MODE_VALUES.join("|")}>] [--download-code <code> | --download-code-stdin] [--price <usdc>] [--window <duration>] [--pay-to <address>] [--network <caip2>] [--port <port>] [--confirmed] [--public] [--tunnel <tailscale|cloudflared>] [--public-confirm ${PUBLIC_CONFIRM_PHRASE}] [--allow-sensitive-path --acknowledge-sensitive-path-risk] [--og-title <text>] [--og-description <text>] [--og-image-url <https://...|./image.png>] [--ended-window-seconds <seconds>]`);
   console.log("");
   console.log(outUi.section("On-chain announce"));
   console.log("  --announce                 List the drop in the on-chain registry once the public URL is live (needs --public)");
   console.log("  --title <text>             Registry title (default: --og-title, then the file name)");
   console.log("  --description <text>       Registry description (default: --og-description)");
-  console.log("  --private-key-file <path>  Key that signs the announcement (or set DEPLOYER_PRIVATE_KEY)");
+  console.log("  --private-key-file <path>  Key that signs the announcement (else DEPLOYER_PRIVATE_KEY, the seller wallet, .locus.json)");
   console.log("  --testnet                  Announce on Base Sepolia (default: Base mainnet, costs gas)");
   console.log("");
   console.log(outUi.section("Notes"));
   console.log("  --public uses Tailscale Funnel by default (stable https://<host>.ts.net URL; needs Tailscale installed and logged in).");
   console.log("  --tunnel cloudflared uses a temporary Cloudflare quick tunnel instead (no account, URL changes on restart).");
+  console.log("  In a terminal, `nustuf publish` opens a wizard prefilled from your flags and saved profile.");
+  console.log(`  Without a terminal (agents, CI) it runs straight from the flags, and --public needs --public-confirm ${PUBLIC_CONFIRM_PHRASE}.`);
   console.log("");
   console.log(outUi.section("Examples"));
   console.log("  nustuf publish");
-  console.log("  nustuf --file ./vape.jpg");
-  console.log("  nustuf --file ./vape.jpg --price 0.01 --window 1h --confirmed");
-  console.log('  nustuf --file ./vape.jpg --access-mode download-code-only-no-payment --download-code "friends-only"');
-  console.log('  nustuf --file ./vape.jpg --public --og-title "My New Drop" --og-description "Agent-assisted purchase"');
-  console.log(`  nustuf --file ./vape.jpg --public --public-confirm ${PUBLIC_CONFIRM_PHRASE}`);
-  console.log(`  nustuf --file ./vape.jpg --price 0.50 --window 24h --public --public-confirm ${PUBLIC_CONFIRM_PHRASE} --announce --title "My Drop"`);
-  console.log("  nustuf --file ./vape.jpg --public --og-image-url ./cover.png");
-  console.log("  npm run nustuf -- --file ./vape.jpg");
-  console.log("  npm run nustuf -- --file ./vape.jpg --price 0.01 --window 1h --confirmed");
+  console.log("  nustuf publish --file ./vape.jpg");
+  console.log("  nustuf publish --file ./vape.jpg --price 0.01 --window 1h --confirmed");
+  console.log('  nustuf publish --file ./vape.jpg --access-mode download-code-only-no-payment --download-code "friends-only"');
+  console.log('  nustuf publish --file ./vape.jpg --public --og-title "My New Drop" --og-description "Agent-assisted purchase"');
+  console.log(`  nustuf publish --file ./vape.jpg --public --public-confirm ${PUBLIC_CONFIRM_PHRASE}`);
+  console.log(`  nustuf publish --file ./vape.jpg --price 0.50 --window 24h --public --public-confirm ${PUBLIC_CONFIRM_PHRASE} --announce --title "My Drop"`);
+  console.log("  nustuf publish --file ./vape.jpg --public --og-image-url ./cover.png");
   process.exit(code);
 }
 
@@ -780,10 +779,8 @@ function parseDurationToSeconds(s) {
   if (!s) return null;
   const str = String(s).trim().toLowerCase();
 
-  // Allow: "1 hour", "60 minutes", etc.
   const spaced = str.replace(/\s+/g, "");
 
-  // Raw seconds: "3600"
   if (/^\d+$/.test(spaced)) return Number(spaced);
 
   const m = spaced.match(
@@ -949,7 +946,6 @@ function bestEffortChmod(targetPath, mode) {
   try {
     fs.chmodSync(targetPath, mode);
   } catch {
-    // best effort only
   }
 }
 
@@ -1172,8 +1168,6 @@ async function supervisorMain({
     console.log(line);
   }
 
-  // Announce once, on the first public URL. Funnel URLs are stable across restarts; quick-tunnel
-  // URLs are not, so any later change only warns instead of writing (and paying gas for) another registry entry.
   let announcedUrl = null;
   const announceIfNeeded = (promoUrl) => {
     if (!announcePlan || !promoUrl) return;
@@ -1182,7 +1176,6 @@ async function supervisorMain({
       ` --title ${JSON.stringify(announcePlan.title)}${announcePlan.useTestnet ? " --testnet" : ""}`;
     if (announcedUrl === null) {
       announcedUrl = promoUrl;
-      // Recorded in the run state so `nustuf status --json` shows how the listing went.
       const recordAnnounce = (fields) => {
         runState.announce = { ...runState.announce, ...fields };
         runState = persistRunState(runStatePaths, runState);
@@ -1367,7 +1360,7 @@ async function main() {
     if (positionalPath) {
       usageAndExit(
         1,
-        `Expected '--file <path>', but got positional '${positionalPath}'. If using npm scripts, run: npm run nustuf -- --file ${positionalPath}`,
+        `Expected '--file <path>', but got positional '${positionalPath}'. Run: nustuf publish --file ${positionalPath}`,
       );
     }
     usageAndExit(1);
@@ -1446,7 +1439,6 @@ async function main() {
   const effectiveFacilitatorMode = ALLOWED_FACILITATOR_MODES.has(facilitatorMode)
     ? facilitatorMode
     : "testnet";
-  // The server refuses Base mainnet with the testnet facilitator; fail here instead of crash-looping.
   if (requiresPayment && network === "eip155:8453" && effectiveFacilitatorMode !== "cdp_mainnet") {
     logError("Base mainnet payments (eip155:8453) need FACILITATOR_MODE=cdp_mainnet plus CDP_API_KEY_ID and CDP_API_KEY_SECRET.");
     logError("To try nustuf without CDP keys, sell on Base Sepolia instead: add --network eip155:84532");
@@ -1531,7 +1523,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Resolve everything the on-chain announce needs before launch, so a missing key fails fast.
   let announcePlan = null;
   if (args.announce) {
     if (!args.public) {
@@ -1556,7 +1547,6 @@ async function main() {
       logError(`--announce: ${err.message || String(err)}`);
       process.exit(1);
     }
-    // An unfunded signer would only fail after the drop is live, in the background. Catch it now.
     const gas = await checkAnnounceGas({ address: announcePlan.signer, useTestnet: announcePlan.useTestnet });
     if (gas.status === "empty") {
       logError(`--announce: signer ${announcePlan.signer} (${announcePlan.signerSource}) has no ETH on ${gas.chainName} to pay gas.`);
@@ -1569,7 +1559,6 @@ async function main() {
     announcePlan.signerBalanceEth = gas.balanceEth ?? null;
   }
 
-  // Spawn the server with explicit env so there's no confusion.
   const envBase = {
     ...process.env,
     PORT: String(port),
@@ -1647,7 +1636,7 @@ async function main() {
       }
       args.tunnelInfo = { provider: tunnelProvider, hostname: preflight.hostname, publicPort };
     } else {
-      const localOnlyCmd = `nustuf --file ${JSON.stringify(artifactPath)} --access-mode ${accessMode} --price ${prompted.price} --window ${prompted.windowSeconds}s${requiresPayment ? ` --pay-to ${payTo}` : ""} --network ${network}${requiresPayment && confirmationPolicy === "confirmed" ? " --confirmed" : ""}${Number.isFinite(port) && port !== 4021 ? ` --port ${port}` : ""}${effectiveEndedWindowSeconds > 0 ? ` --ended-window-seconds ${effectiveEndedWindowSeconds}` : ""}`;
+      const localOnlyCmd = `nustuf publish --file ${JSON.stringify(artifactPath)} --access-mode ${accessMode} --price ${prompted.price} --window ${prompted.windowSeconds}s${requiresPayment ? ` --pay-to ${payTo}` : ""} --network ${network}${requiresPayment && confirmationPolicy === "confirmed" ? " --confirmed" : ""}${Number.isFinite(port) && port !== 4021 ? ` --port ${port}` : ""}${effectiveEndedWindowSeconds > 0 ? ` --ended-window-seconds ${effectiveEndedWindowSeconds}` : ""}`;
       printTunnelInstallHelp(tunnelProvider, { logError, logWarn, errUi, localOnlyCmd });
       if (requiresDownloadCode) {
         logWarn("Local mode still requires download-code input or DOWNLOAD_CODE_HASH.");
@@ -1693,7 +1682,6 @@ async function main() {
     latestBuyUrl: null,
     status: "running",
     lastExitReason: "",
-    // Read by `nustuf status` / `nustuf stop` and the SwiftBar plugin.
     pid: process.pid,
     title: (typeof args.title === "string" && args.title) || ogTitle || path.basename(artifactPath),
     file: artifactPath,

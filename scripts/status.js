@@ -27,13 +27,11 @@ function formatAnnounce(a) {
 }
 
 function swiftbarText(value) {
-  // SwiftBar treats "|" as the parameter separator and newlines as line breaks.
   return String(value ?? "").replace(/\|/g, "¦").replace(/[\r\n]+/g, " ").trim();
 }
 
 function printSwiftbar(runs) {
   const cli = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "cli.js");
-  // Absolute node + cli paths: SwiftBar actions don't inherit the user's shell PATH.
   const action = (...args) =>
     `bash="${process.execPath}" param1="${cli}" ${args.map((a, i) => `param${i + 2}="${a}"`).join(" ")} terminal=false refresh=true`;
   const serving = runs.filter((run) => run.state === "serving");
@@ -146,13 +144,12 @@ async function runStop(argv) {
 
   let failed = false;
   for (const run of matches) {
-    // Re-verify right before signalling so a recycled pid is never killed.
     if (!isPublishProcess(run.pid)) {
       console.error(errUi.statusLine("warn", `${run.id.slice(0, 8)} is no longer running.`));
       continue;
     }
     try {
-      process.kill(run.pid, "SIGTERM"); // publish.js shuts down its server and tunnel on SIGTERM
+      process.kill(run.pid, "SIGTERM");
     } catch (err) {
       failed = true;
       console.error(errUi.statusLine("error", `Could not stop ${run.id.slice(0, 8)}: ${err.message}`));

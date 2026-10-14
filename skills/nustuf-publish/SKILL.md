@@ -109,16 +109,7 @@ nustuf publish \
 ## ⚠️ Known issues
 
 ### Port conflicts
-The server defaults to port 4021. If a previous instance didn't shut down cleanly, the new one will crash with `EADDRINUSE`. Before starting a new publish:
-
-```bash
-# Kill any existing nustuf processes
-pkill -f "publish.js\|index.js" 2>/dev/null
-# Verify port is free
-kill -9 $(lsof -ti:4021) 2>/dev/null || true
-# Wait a moment for cleanup
-sleep 2
-```
+The server defaults to port 4021. If something is already on it, the new run crashes with `EADDRINUSE`. Run `nustuf status --json` first: if an earlier drop is still serving, ask the user before `nustuf stop <id>`, or pass `--port <other>` to run both. Never kill processes by name or port.
 
 ### Tunnels
 `--public` uses Tailscale Funnel by default (needs Tailscale installed and logged in; URL is `https://<machine>.<tailnet>.ts.net` and stable across restarts). Use `--tunnel cloudflared` for a temporary account-free URL.

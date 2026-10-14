@@ -627,7 +627,6 @@ async function startQuickTunnelForProxy({ proxyPort, timeoutMs = 30000 }) {
       try {
         proc.kill("SIGTERM");
       } catch {
-        // best effort only
       }
       reject(new Error(message));
     };
@@ -814,7 +813,6 @@ async function main() {
       try {
         runtime.tunnelProc.kill("SIGTERM");
       } catch {
-        // best effort only
       }
     }
 
@@ -829,7 +827,6 @@ async function main() {
         try {
           runtime.tunnelProc.kill("SIGKILL");
         } catch {
-          // best effort only
         }
       }
 

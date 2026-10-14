@@ -19,8 +19,6 @@ function processCommand(pid) {
   return res.status === 0 ? String(res.stdout || "").trim() : "";
 }
 
-// True only when the pid is alive AND still looks like a nustuf publish process, so a recycled
-// pid never gets reported as serving (or signalled by `nustuf stop`).
 export function isPublishProcess(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
@@ -34,10 +32,8 @@ export function isPublishProcess(pid) {
 function describeRun(raw) {
   const now = nowSeconds();
   const recordedRunning = raw.status === "running";
-  // Records written before pid tracking (<= 0.7.0) can't be verified; never call them stale.
   const legacy = recordedRunning && !raw.pid;
   const alive = recordedRunning && !legacy && isPublishProcess(raw.pid);
-  // "running" on disk with no live process means the supervisor was killed without cleaning up.
   const state = legacy
     ? "unknown"
     : recordedRunning
@@ -70,7 +66,6 @@ function describeRun(raw) {
     secondsUntilStop: alive && hardStopTs ? Math.max(0, hardStopTs - now) : null,
     restartCount: raw.restartCount ?? 0,
     lastExitReason: raw.lastExitReason || null,
-    // On-chain listing: { status, signer, signerSource, chain, txHash, explorerUrl, error }, or null.
     announce: raw.announce || null,
     updatedAtTs: raw.updatedAtTs ?? null,
   };
@@ -91,7 +86,6 @@ export function listRuns() {
       const raw = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
       if (raw && typeof raw === "object" && raw.runId) runs.push(describeRun(raw));
     } catch {
-      // skip unreadable or half-written files
     }
   }
   return runs.sort((a, b) => (b.startedAtTs || 0) - (a.startedAtTs || 0));
@@ -101,7 +95,6 @@ export function listServing() {
   return listRuns().filter((run) => run.state === "serving");
 }
 
-// Mark stale records as stopped so they stop showing up as live.
 export function markStaleRunsStopped() {
   const dir = getRunsDirPath();
   for (const run of listRuns()) {
@@ -114,7 +107,6 @@ export function markStaleRunsStopped() {
       raw.updatedAtTs = nowSeconds();
       fs.writeFileSync(statePath, `${JSON.stringify(raw, null, 2)}\n`, { mode: 0o600 });
     } catch {
-      // best effort
     }
   }
 }

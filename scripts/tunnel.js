@@ -3,8 +3,6 @@ import { spawn, spawnSync } from "node:child_process";
 export const TUNNEL_PROVIDERS = ["tailscale", "cloudflared"];
 export const DEFAULT_TUNNEL_PROVIDER = "tailscale";
 
-// Funnel only accepts public ports 443, 8443 and 10000. The local port nustuf listens on is
-// unrelated: `tailscale funnel --https=<public> <local>` maps one to the other.
 export const FUNNEL_PUBLIC_PORTS = [443, 8443, 10000];
 
 export function normalizeTunnelProvider(value) {
@@ -15,7 +13,6 @@ export function normalizeTunnelProvider(value) {
   return TUNNEL_PROVIDERS.includes(v) ? v : null;
 }
 
-// `tailscale status --json` reports Self.DNSName with a trailing dot, e.g. "mybox.tail1234.ts.net."
 export function parseTailscaleStatus(json) {
   let status;
   try {
@@ -47,7 +44,6 @@ export function tailscalePreflight() {
   if (probe.error?.code === "ENOENT") {
     return { ok: false, missing: true, reason: "tailscale is not installed or not on PATH." };
   }
-  // The macOS wrapper at /usr/local/bin/tailscale exits non-zero when the app is gone.
   if (probe.error || (probe.status !== 0 && !probe.stdout)) {
     return {
       ok: false,
@@ -97,19 +93,12 @@ export function printTunnelInstallHelp(provider, { logError, logWarn, errUi, loc
   }
   console.error("");
   console.error(errUi.section("Retry"));
-  console.error("  nustuf --file <path> --pay-to <address> --public");
+  console.error("  nustuf publish --file <path> --pay-to <address> --public");
   console.error("");
   console.error(errUi.section("Local-only Alternative (No Tunnel)"));
   console.error(`  ${localOnlyCmd}`);
 }
 
-// Starts the tunnel as a child process and reports the public origin once it is live.
-// Both providers run in the foreground, so killing the child tears the tunnel down.
-//
-// onUrl(origin)   called once with e.g. "https://mybox.tail1234.ts.net" (no trailing slash)
-// onFatal(detail, { retriable }) called if the tunnel cannot start or dies before stop was requested;
-//                 retriable=false means retrying cannot help (needs the user to change something)
-// returns { proc }
 export function startTunnel({ provider, port, hostname, publicPort, onUrl, onFatal }) {
   if (provider === "cloudflared") {
     return startCloudflared({ port, onUrl, onFatal });
@@ -148,8 +137,6 @@ function startCloudflared({ port, onUrl, onFatal }) {
 const FUNNEL_ENABLE_HINT = /https:\/\/login\.tailscale\.com\/f\/funnel\S*/i;
 
 function startTailscaleFunnel({ port, hostname, publicPort = 443, onUrl, onFatal }) {
-  // Foreground mode (no --bg): Tailscale removes the Funnel config when this process exits,
-  // so an interrupted publish never leaves a port open to the internet.
   const proc = spawn("tailscale", ["funnel", `--https=${publicPort}`, String(port)], {
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -161,7 +148,6 @@ function startTailscaleFunnel({ port, hostname, publicPort = 443, onUrl, onFatal
     if (announced) return;
     const hint = tail.match(FUNNEL_ENABLE_HINT);
     if (hint) {
-      // Funnel is not enabled for this tailnet yet; the CLI prints a link and waits.
       onFatal(`Funnel is not enabled on your tailnet. Enable it here, then re-run: ${hint[0]}`, { retriable: false });
       return;
     }
@@ -184,8 +170,6 @@ function startTailscaleFunnel({ port, hostname, publicPort = 443, onUrl, onFatal
   return { proc, getOutputTail: () => tail };
 }
 
-// Picks the first public port in FUNNEL_PUBLIC_PORTS that no other Funnel config is using, so
-// publishing never overwrites a Funnel the user already runs for something else.
 export function pickFunnelPublicPort() {
   const probe = spawnSync("tailscale", ["funnel", "status", "--json"], { encoding: "utf8" });
   if (probe.error || probe.status !== 0 || !probe.stdout.trim()) return FUNNEL_PUBLIC_PORTS[0];
@@ -195,8 +179,6 @@ export function pickFunnelPublicPort() {
   } catch {
     return FUNNEL_PUBLIC_PORTS[0];
   }
-  // Background funnels report AllowFunnel at the top level; foreground ones (what nustuf starts)
-  // report it under Foreground.<session-id>.
   const sources = [cfg, ...Object.values(cfg?.Foreground || {})];
   const taken = new Set();
   for (const source of sources) {

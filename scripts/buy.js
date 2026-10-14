@@ -27,8 +27,9 @@ function usageAndExit(code = 1) {
   console.log(outUi.section("Usage"));
   console.log("  nustuf buy <url> [options]");
   console.log("");
-  console.log(outUi.section("Payment Options (choose one)"));
-  console.log("  --locus                         Pay via Locus wallet (recommended)");
+  console.log(outUi.section("Payment Options"));
+  console.log("  (default)                       Pay from the nustuf buyer wallet (nustuf wallet create --role buyer)");
+  console.log("  --locus                         Pay via Locus wallet");
   console.log("  --buyer-private-key-file <path> Pay with local private key file");
   console.log("");
   console.log(outUi.section("Other Options"));
@@ -39,9 +40,10 @@ function usageAndExit(code = 1) {
   console.log("  An existing file is never overwritten; the new file gets a (1), (2), ... suffix.");
   console.log("");
   console.log(outUi.section("Examples"));
-  console.log("  nustuf buy https://xxx.trycloudflare.com/ --locus");
-  console.log("  nustuf buy https://xxx.trycloudflare.com/download --locus --download-code friends-only");
-  console.log("  nustuf buy https://xxx.trycloudflare.com/ --buyer-private-key-file ./buyer.key");
+  console.log("  nustuf buy https://<machine>.<tailnet>.ts.net/");
+  console.log("  nustuf buy https://<machine>.<tailnet>.ts.net/ --locus");
+  console.log("  nustuf buy https://<machine>.<tailnet>.ts.net/download --download-code friends-only");
+  console.log("  nustuf buy https://<machine>.<tailnet>.ts.net/ --buyer-private-key-file ./buyer.key");
   process.exit(code);
 }
 
@@ -66,17 +68,12 @@ function parseArgs(argv) {
   return args;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Locus Integration
-// ─────────────────────────────────────────────────────────────────────────────
 
 function loadLocusApiKey() {
-  // Check environment variable first
   if (process.env.LOCUS_API_KEY) {
     return process.env.LOCUS_API_KEY;
   }
   
-  // Check .locus.json in current directory
   const localPath = path.resolve(process.cwd(), ".locus.json");
   if (fs.existsSync(localPath)) {
     try {
@@ -85,7 +82,6 @@ function loadLocusApiKey() {
     } catch {}
   }
   
-  // Check ~/.config/locus/credentials.json
   const homePath = path.join(process.env.HOME || "", ".config", "locus", "credentials.json");
   if (fs.existsSync(homePath)) {
     try {
@@ -141,9 +137,6 @@ async function payViaLocus(apiKey, targetUrl, method = "GET") {
   return result;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper Functions
-// ─────────────────────────────────────────────────────────────────────────────
 
 function getHeaderCaseInsensitive(headers, name) {
   const target = name.toLowerCase();
@@ -351,7 +344,6 @@ async function resolveDownloadUrl(input) {
     }
   }
 
-  // Fallback to legacy discovery endpoint
   const legacyDiscoveryUrl = new URL("/.well-known/nustuf", inputUrl.origin).toString();
   const legacyFetch = await fetchJsonPayload(legacyDiscoveryUrl);
   if (legacyFetch.ok && (legacyFetch.response.status === 200 || legacyFetch.response.status === 410)) {
@@ -377,7 +369,6 @@ function responseBodyText(response) {
   return response.text().catch(() => "");
 }
 
-// Checked before any request is made: a bad --out used to surface only after the payment settled.
 function validateOutPath(args) {
   if (args.out === undefined) return;
   if (typeof args.out !== "string" || !args.out.trim()) {
@@ -392,8 +383,6 @@ function validateOutPath(args) {
   }
 }
 
-// Default download folder: $NUSTUF_DOWNLOAD_DIR, else ~/Downloads/nustuf. Never the current directory,
-// which for an agent is often a temp or project folder the user will not look in.
 function defaultDownloadDir() {
   const home = process.env.HOME || os.homedir();
   const fromEnv = (process.env.NUSTUF_DOWNLOAD_DIR || "").trim();
@@ -414,7 +403,6 @@ function resolveOutputPath(args, serverFilename) {
   return path.join(defaultDownloadDir(), safeServerFilename);
 }
 
-// Never overwrite: if the file exists, save as "name (1).ext", "name (2).ext", ...
 function uniquePath(filePath) {
   if (!fs.existsSync(filePath)) return filePath;
   const { dir, name, ext } = path.parse(filePath);
@@ -531,9 +519,6 @@ function printLocusReceipt(result) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -570,11 +555,8 @@ async function main() {
   }
 
   if (r1.status === 402) {
-    // Payment required
     
     if (useLocus) {
-      // ─── Locus Direct Payment Flow ───
-      // Workaround: Locus x402/call has a bug, so we use pay/send + verify-tx
       const apiKey = loadLocusApiKey();
       if (!apiKey) {
         throw new Error(
@@ -582,11 +564,9 @@ async function main() {
         );
       }
       
-      // Check balance
       const balance = await checkLocusBalance(apiKey);
       console.log(outUi.statusLine("info", `Locus wallet balance: ${balance.usdc_balance} USDC`));
       
-      // Parse payment requirements from the 402 header
       const paymentRequiredHeader = getHeaderCaseInsensitive(r1.headers, "PAYMENT-REQUIRED");
       if (!paymentRequiredHeader) throw new Error("Missing PAYMENT-REQUIRED header");
       const paymentRequired = decodePaymentRequiredHeader(paymentRequiredHeader);
@@ -599,7 +579,6 @@ async function main() {
       
       console.log(outUi.statusLine("info", `Payment: ${amountUsdc} USDC to ${payTo}`));
       
-      // Send USDC via Locus pay/send
       console.log(outUi.statusLine("info", "Sending payment via Locus wallet..."));
       const sendResponse = await fetch(`${LOCUS_API_BASE}/pay/send`, {
         method: "POST",
@@ -627,7 +606,6 @@ async function main() {
       console.log(outUi.statusLine("ok", `Payment queued! id: ${transactionId}`));
       console.log(outUi.statusLine("info", "Waiting for on-chain confirmation..."));
       
-      // Poll for tx_hash
       let txHash = null;
       for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 3000));
@@ -651,7 +629,6 @@ async function main() {
         throw new Error("Timed out waiting for Locus payment confirmation");
       }
       
-      // Verify tx with the server
       const verifyUrl = new URL("/download/verify-tx", new URL(downloadUrl).origin).toString();
       const verifyResponse = await fetch(verifyUrl, {
         method: "POST",
@@ -666,7 +643,6 @@ async function main() {
       
       console.log(outUi.statusLine("ok", "Payment verified by server!"));
       
-      // Download with token
       const tokenUrl = new URL(downloadUrl);
       tokenUrl.searchParams.set("token", verifyResult.token);
       
@@ -676,7 +652,6 @@ async function main() {
         throw new Error(`Download failed: ${r2.status}: ${text}`);
       }
       
-      // Print receipt
       console.log("");
       console.log(outUi.section("Locus Payment Receipt"));
       const rows = [
@@ -693,7 +668,6 @@ async function main() {
       return;
     }
     
-    // ─── Local Key Payment Flow ───
     const paymentRequiredHeader = getHeaderCaseInsensitive(r1.headers, "PAYMENT-REQUIRED");
     if (!paymentRequiredHeader) throw new Error("Missing PAYMENT-REQUIRED header");
 
@@ -705,7 +679,6 @@ async function main() {
     }
     
     if (!buyerPk) {
-      // Fall back to the wallet `nustuf wallet create --role buyer` generated, if any
       buyerPk = readWalletKey("buyer");
       if (buyerPk) {
         console.log(outUi.statusLine("info", `Paying from nustuf buyer wallet ${getWalletAddress("buyer")}`));

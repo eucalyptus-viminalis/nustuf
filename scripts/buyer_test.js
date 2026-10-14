@@ -14,7 +14,7 @@ const DEV_DEFAULT_BASE_URL = process.env.DEV_DEFAULT_BASE_URL || "http://127.0.0
 const BASE_URL = process.env.BASE_URL || (process.env.NUSTUF_DEV === "1" ? DEV_DEFAULT_BASE_URL : null);
 const BUYER_PRIVATE_KEY = process.env.BUYER_PRIVATE_KEY;
 const OUTPUT_PATH = process.env.OUTPUT_PATH || "downloaded.bin";
-const OUTPUT_BASENAME = process.env.OUTPUT_BASENAME; // optional, without extension
+const OUTPUT_BASENAME = process.env.OUTPUT_BASENAME;
 
 if (!BASE_URL) {
   console.error("Missing BASE_URL env var (set NUSTUF_DEV=1 to allow local default for development)");
@@ -50,7 +50,6 @@ function sanitizeFilename(name) {
 }
 
 async function main() {
-  // 1) First request: expect 402 with PAYMENT-REQUIRED header.
   const r1 = await fetch(`${BASE_URL}/download`, { method: "GET" });
   if (r1.status !== 402) {
     const text = await r1.text().catch(() => "");
@@ -68,7 +67,6 @@ async function main() {
   const payload = await client.createPaymentPayload(paymentRequired);
   const paymentHeader = encodePaymentSignatureHeader(payload);
 
-  // 2) Second request: send payment signature, expect token JSON.
   const r2 = await fetch(`${BASE_URL}/download`, {
     method: "GET",
     headers: {
@@ -86,12 +84,6 @@ async function main() {
   if (!token)
     throw new Error(`Missing token in response: ${JSON.stringify(data)}`);
 
-  // Choose output path.
-  // Priority:
-  // 1) OUTPUT_PATH (full path)
-  // 2) OUTPUT_BASENAME (basename without extension) + server extension
-  // 3) server-provided filename
-  // 4) fallback OUTPUT_PATH default
   let outPath;
 
   if (process.env.OUTPUT_PATH) {
@@ -107,7 +99,6 @@ async function main() {
     outPath = OUTPUT_PATH;
   }
 
-  // 3) Final request: download artifact with token.
   const r3 = await fetch(
     `${BASE_URL}/download?token=${encodeURIComponent(token)}`,
     {

@@ -1,6 +1,3 @@
-// Integration tests: start the real server (src/index.js) as a child process and
-// hit it over HTTP. Payment mode talks to a fake facilitator on localhost, so no
-// network access, wallet or CDP credentials are needed.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -22,7 +19,6 @@ let workDir;
 let artifactPath;
 
 before(() => {
-  // Run the server from an empty directory so dotenv cannot pick up a real .env.
   workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nustuf-test-"));
   artifactPath = path.join(workDir, "artifact.txt");
   fs.writeFileSync(artifactPath, ARTIFACT_BODY);
@@ -91,7 +87,6 @@ async function startServer(env) {
       const res = await fetch(`${base}/health`);
       if (res.ok) break;
     } catch {
-      // not listening yet
     }
     await new Promise((r) => setTimeout(r, 100));
   }

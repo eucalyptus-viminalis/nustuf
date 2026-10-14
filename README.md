@@ -86,7 +86,7 @@ nustuf publish --file ./track.mp3 --price 0.50 --pay-to 0xYOUR_ADDRESS --public 
 
 The listing uses the sale price, expires when the sale window ends, and includes a SHA-256 hash of the file. It is signed by the first key found among `--private-key-file`, `DEPLOYER_PRIVATE_KEY` (shell or `.env`), the seller wallet and `.locus.json`; the publish summary prints the signer address and its balance. It is written to Base mainnet by default, which costs a little gas; add `--testnet` for Base Sepolia. If the signer has no ETH on that chain, publish exits before going live. The announce result (tx hash or error) shows up in `nustuf status --json`. If the announce fails, the drop stays live and nustuf prints the `nustuf announce` command to retry by hand.
 
-> **Note:** `nustuf publish` launches an interactive wizard by default. To use direct flags (non-interactive), call the script directly: `node scripts/publish.js --file <path> --price <usdc> --window <duration> --pay-to <address> [--public --public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE]`
+> **Note:** in a terminal, `nustuf publish` opens an interactive wizard prefilled from your flags and saved profile (`nustuf config`). Without a terminal (agents, CI, scripts) it runs straight from the flags, and `--public` also needs `--public-confirm I_UNDERSTAND_PUBLIC_EXPOSURE`.
 
 ### Discover drops
 
@@ -129,7 +129,7 @@ nustuf stop <id>       # stop one item (id or unique prefix), or: nustuf stop al
 
 Every `nustuf publish` records itself under `~/.nustuf/runs/`, so `status` works from any terminal. Runs started before this was added show as `unknown` in `status --all` and are not listed as serving.
 
-For a menu bar indicator, install [SwiftBar](https://swiftbar.app) (`brew install --cask swiftbar`) and copy `integrations/swiftbar/nustuf.10s.sh` into its plugin folder. It shows a green dot and count while anything is live, with a per-item menu to open, copy the link, or stop.
+For a menu bar indicator, install [SwiftBar](https://swiftbar.app) (`brew install --cask swiftbar`) and copy or symlink `integrations/swiftbar/nustuf.10s.sh` into its plugin folder. SwiftBar runs plugins with a minimal `PATH`, so the plugin adds the usual Node locations (Homebrew, nvm, Volta, fnm); if it still can't find `nustuf`, set `NUSTUF_CLI` to its full path in the plugin's environment settings. It shows a green dot and count while anything is live, with a per-item menu to open, copy the link, or stop.
 
 ### Wallets
 
@@ -151,10 +151,12 @@ Set these as environment variables or in a `.env` file.
 
 | Variable | Needed for | Notes |
 |---|---|---|
-| `LOCUS_API_KEY` | `buy` | Locus agent wallet. A `.locus.json` file with `{ "apiKey": "..." }` also works. No wallet yet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). |
+| `LOCUS_API_KEY` | `buy --locus` | Locus agent wallet. A `.locus.json` file with `{ "apiKey": "..." }` also works. No wallet yet? See [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). |
 | `NUSTUF_REGISTRY_ADDRESS` | `publish --announce`, `announce`, `discover` | Optional. Defaults to the deployed registry, `0x134597d9Cc6270571C2b8245c4235f7838C0d65D`. |
 | `NUSTUF_REGISTRY_CHAIN` | `publish --announce`, `announce`, `discover` | Optional. `base` (default) or `base-sepolia`. Both commands use the same default, so announced drops show up in `discover`. |
-| `DEPLOYER_PRIVATE_KEY` | `publish --announce`, `announce` | Key that signs the on-chain announcement. Use a dedicated low-value key. |
+| `DEPLOYER_PRIVATE_KEY` | `publish --announce`, `announce`, `identity` | Optional. Key that signs on-chain writes; without it nustuf uses the seller wallet. Use a dedicated low-value key. |
+| `SELLER_PAY_TO` | `publish` | Optional. Payout address when `--pay-to` is not given (after that, the saved profile). |
+| `NUSTUF_DOWNLOAD_DIR` | `buy` | Optional. Download folder (default `~/Downloads/nustuf/`). |
 | `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, `FACILITATOR_MODE=cdp_mainnet` | mainnet payments | Coinbase Developer Platform keys for settling USDC on Base mainnet. |
 
 ## How it works
@@ -168,13 +170,13 @@ Creator                          Blockchain                        Buyer Agent
   │                                  │  (query active releases)         │
   │◄─────────────────────────────────┼──────────── nustuf buy ──────────┤
   │  402 Payment Required            │                                  │
-  │◄─────────────────────────────────┼──── USDC payment (via Locus) ────┤
+  │◄─────────────────────────────────┼──────── USDC payment ────────────┤
   │  ✅ Content delivered            │                                  │
 ```
 
 1. **Publish:** the creator runs `nustuf publish`. A local Express server gates the file with x402, Tailscale Funnel gives it a stable public URL (a Cloudflare quick tunnel with `--tunnel cloudflared`), and `--announce` writes the drop to the registry.
 2. **Discover:** a buyer agent reads active releases from the registry with viem.
-3. **Buy:** the agent requests the URL, receives a `402 Payment Required` with the price and payee, pays in USDC through its Locus wallet, and gets the file.
+3. **Buy:** the agent requests the URL, receives a `402 Payment Required` with the price and payee, pays in USDC from its wallet (a nustuf buyer wallet or Locus), and gets the file.
 
 The buyer never needs to know the file format or create an account; the HTTP response tells it everything it needs to pay.
 
@@ -185,7 +187,7 @@ nustuf ships 3 agent skills in the `skills/` directory. Each has a `SKILL.md` wi
 | Skill | Description |
 |-------|-------------|
 | [`nustuf-publish`](skills/nustuf-publish/SKILL.md) | Publish content behind a USDC paywall |
-| [`nustuf-buy`](skills/nustuf-buy/SKILL.md) | Purchase content using a Locus wallet |
+| [`nustuf-buy`](skills/nustuf-buy/SKILL.md) | Purchase content with a nustuf buyer wallet or Locus |
 | [`nustuf-discover`](skills/nustuf-discover/SKILL.md) | Discover live drops from the on-chain registry |
 
 Running nustuf servers also expose skill metadata at `/.well-known/skills/index.json` for automated agent discovery.
@@ -203,6 +205,8 @@ nustuf stop       Stop a published item (or all)
 nustuf host       Multi-host server
 nustuf config     Manage configuration
 nustuf wallet     Generate and check a buyer or seller wallet
+nustuf identity   ERC-8004 agent identity (testnet, draft)
+nustuf version    Show the version
 ```
 
 Run `nustuf --help` or `nustuf <command> --help` for details.
@@ -232,12 +236,12 @@ NustufRegistry is deployed at the same address on both networks:
 ```bash
 pnpm test             # unit tests, plus integration tests that start the real server
 pnpm test:contracts   # Foundry tests for NustufRegistry
-pnpm check            # version sync, no machine-specific paths, skill command scope, terminology
+pnpm check            # version sync, no machine-specific paths, skill command scope, terminology, no comments
 ```
 
 The integration tests run the server against a fake x402 facilitator on localhost, so they need no wallet, network access or credentials. They check that an unpaid download gets `402 Payment Required` with the right payment requirements, and that download codes are enforced. `pnpm test` needs Node 21 or later.
 
-The commands that spend money or write to the registry have their own tests. `test/cli_inputs.test.js` runs `nustuf buy` and checks that bad URLs, `--out` paths, download-code and key inputs fail before any request or payment. `test/announce.test.js` checks the `nustuf announce` plan (price to USDC base units, expiry, URL and content-hash validation), the signer-key order and the gas check. CI runs all of it on every push and pull request.
+The commands that spend money or write to the registry have their own tests. `test/cli_inputs.test.js` runs `nustuf buy` and checks that bad URLs, `--out` paths, download-code and key inputs fail before any request or payment. `test/announce.test.js` checks the `nustuf announce` plan (price to USDC base units, expiry, URL and content-hash validation), the signer-key order and the gas check. `test/help.test.js` checks that every `--help` exits cleanly and only suggests commands that exist. CI runs all of it, plus `pnpm check`, on every push and pull request.
 
 ## Status
 

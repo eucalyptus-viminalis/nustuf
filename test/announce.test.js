@@ -1,5 +1,3 @@
-// Unit tests for `nustuf announce`: the plan it builds is what gets written to the
-// on-chain registry, so bad input must be rejected before any key is loaded or gas spent.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -77,7 +75,6 @@ test("--file is hashed with SHA-256; explicit --content-hash wins", () => {
   assert.equal(plan({ file, "content-hash": explicit }).contentHash, explicit);
 });
 
-// --- Signer resolution: an agent must be able to tell which wallet pays the gas. ---
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { checkAnnounceGas, resolveSigner, announceRelease } from "../scripts/announce.js";
 
@@ -138,7 +135,6 @@ test("resolveSigner: .locus.json is the last fallback; nothing found throws", (t
   assert.equal(s.source, ".locus.json");
 });
 
-// --- Gas preflight: an empty signer must be caught before the drop goes live. ---
 const ADDR = "0x000000000000000000000000000000000000dEaD";
 
 test("checkAnnounceGas: zero balance is empty, on the chain asked for", async () => {
@@ -163,7 +159,6 @@ test("checkAnnounceGas: positive balance is ok; RPC failure is unknown, not fata
   assert.match(down.error, /rpc down/);
 });
 
-// --- announceRelease reports who signed and the tx hash as soon as it is submitted. ---
 test("announceRelease: returns the sender and reports the hash before confirmation", async () => {
   const key = generatePrivateKey();
   const hash = "0x" + "11".repeat(32);

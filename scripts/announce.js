@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Announce a release to the NustufRegistry on-chain
- * Called after publish to make the release discoverable
- */
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,12 +12,10 @@ import { readWalletKey } from "./wallet_store.js";
 const outUi = createUi(process.stdout);
 const errUi = createUi(process.stderr);
 
-// Same defaults as discover.js, so a default announce is visible to a default discover.
 const DEFAULT_REGISTRY_ADDRESS = "0x134597d9Cc6270571C2b8245c4235f7838C0d65D";
 const REGISTRY_ADDRESS = process.env.NUSTUF_REGISTRY_ADDRESS || DEFAULT_REGISTRY_ADDRESS;
 const REGISTRY_CHAIN = process.env.NUSTUF_REGISTRY_CHAIN || "base";
 
-// Minimal ABI for announcing
 const REGISTRY_ABI = [
   {
     name: "announce",
@@ -101,9 +95,6 @@ function normalizeHexKey(raw) {
   return key.startsWith("0x") ? key : `0x${key}`;
 }
 
-// Resolves the key that signs (and pays gas for) the announcement, and says where it came from,
-// so the CLI can print the signer address instead of leaving the user to guess.
-// Order: --private-key-file, DEPLOYER_PRIVATE_KEY (shell or .env), seller wallet, .locus.json.
 export function resolveSigner(args = {}, { env = process.env, cwd = process.cwd() } = {}) {
   const found = (privateKey, source) => ({ privateKey, source, address: privateKeyToAccount(privateKey).address });
 
@@ -136,8 +127,6 @@ async function rpcBalance(address, chain) {
   return createPublicClient({ chain, transport: http() }).getBalance({ address });
 }
 
-// Checks the signer has gas on the chain the announcement goes to. "unknown" (RPC trouble)
-// is reported but not fatal; "empty" means the announce is certain to fail.
 export async function checkAnnounceGas({ address, useTestnet = false, getBalance = rpcBalance }) {
   const chain = getChain(useTestnet);
   try {
@@ -178,7 +167,6 @@ export async function announceRelease(options) {
   const walletClient = walletClientOverride || createWalletClient({ account, chain, transport: http() });
   const publicClient = publicClientOverride || createPublicClient({ chain, transport: http() });
 
-  // Convert price to USDC units (6 decimals)
   const priceUnits = parseUnits(String(priceUsdc), 6);
 
   console.log(outUi.statusLine("info", `Announcing release to ${chain.name}...`));
@@ -204,7 +192,6 @@ export async function announceRelease(options) {
   console.log(outUi.statusLine("info", `Transaction submitted: ${hash}`));
   if (onSubmitted) onSubmitted(hash);
 
-  // Wait for confirmation
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
   const explorerUrl = useTestnet
@@ -224,8 +211,6 @@ export async function announceRelease(options) {
 
 const ZERO_HASH = "0x" + "0".repeat(64);
 
-// Validates the CLI inputs and returns exactly what will be written to the registry.
-// Pure (no network, no key), so it can be checked before any gas is spent.
 export function buildAnnouncePlan(args, { now = Math.floor(Date.now() / 1000) } = {}) {
   if (!args.url || args.url === true) throw new Error("--url is required");
   let parsedUrl;
@@ -305,7 +290,6 @@ async function main() {
   });
 }
 
-// Run if called directly
 const isMain = process.argv[1]?.endsWith("announce.js");
 if (isMain) {
   main().catch((e) => {

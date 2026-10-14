@@ -8,43 +8,32 @@ const outputFile = path.join(__dirname, 'conversation-log.txt');
 
 let content = fs.readFileSync(inputFile, 'utf8');
 
-// Remove conversation info JSON blocks (with HUMAN: prefix)
 content = content.replace(/HUMAN: Conversation info \(untrusted metadata\):\n```json\n\{[^}]+\}\n```\n\n/gm, '');
 
-// Remove conversation info JSON blocks (without HUMAN: prefix, in queued messages)
 content = content.replace(/Conversation info \(untrusted metadata\):\n```json\n\{[^}]+\}\n```\n\n/gm, '');
 
-// Remove [System Message] blocks (multi-line)
 content = content.replace(/\[System Message\][^\n]*\n(.*?\n)*?\n/gm, '');
 
-// Remove heartbeat messages
 content = content.replace(/^(H: |HUMAN: )?Read HEARTBEAT\.md if it exists.*?\n(Current time:.*?\n)?/gm, '');
 content = content.replace(/^AGENT: HEARTBEAT_OK\n/gm, '');
 content = content.replace(/^HEARTBEAT_OK\n/gm, '');
 
-// Remove "System:" exec completion messages
 content = content.replace(/^System: \[.*?\] Exec (completed|failed).*?\n/gm, '');
 
-// Change H: to HUMAN:
 content = content.replace(/^H: /gm, 'HUMAN: ');
 
-// Redact emails
 content = content.replace(/mbfanboy333@gmail\.com/g, '[REDACTED_EMAIL]');
 content = content.replace(/jhhuh9@gmail\.com/g, '[REDACTED_EMAIL]');
 content = content.replace(/dolfyjobapplications@gmail\.com/g, '[REDACTED_EMAIL]');
 
-// Redact API keys
 content = content.replace(/sk-[a-zA-Z0-9_-]+/g, '[REDACTED_KEY]');
 content = content.replace(/synth_test_[a-zA-Z0-9_-]+/g, '[REDACTED_API_KEY]');
 content = content.replace(/claw_dev_[a-zA-Z0-9_-]+/g, '[REDACTED_LOCUS_KEY]');
 
-// Redact private keys (64 hex chars)
 content = content.replace(/0x[a-fA-F0-9]{64}/g, '[REDACTED_PRIVATE_KEY]');
 
-// Remove "has_reply_context" objects from remaining conversations
 content = content.replace(/,\n\s+"has_reply_context": true/gm, '');
 
-// Append today's session
 content += '\n---\n## Session: 2026-03-22\n\n';
 content += 'HUMAN: Hey, we need to clean up the hackathon conversation log and finish the submission.\n\n';
 content += 'AGENT: On it. Today we fixed critical bugs and finalized the feed UI:\n\n';

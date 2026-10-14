@@ -1,6 +1,6 @@
 ---
 name: nustuf-buy
-description: Buy content from the nustuf marketplace using Locus payments. Agents pay autonomously within human-defined spending limits.
+description: Buy content from the nustuf marketplace with a nustuf buyer wallet or Locus. Agents pay autonomously within human-defined spending limits.
 compatibility: Requires access to the internet
 version: 0.10.0
 metadata:
@@ -24,56 +24,34 @@ Purchase content from the nustuf marketplace. Sellers publish files behind USDC 
 
 ## Step 1: Set up a wallet
 
-Before you can buy anything, you need a wallet with USDC on the seller's network. **Check for an existing nustuf wallet first** (it is the default and needs no account or API key); only fall back to Locus if the user wants it:
-
-```bash
-nustuf wallet show --role buyer --testnet   # drop --testnet for Base mainnet
-```
-
-If it shows an address with enough USDC, skip to Step 2 and buy without `--locus`. Do not look for or ask for a `LOCUS_API_KEY` unless the user asked for Locus.
+Before you can buy anything, you need a wallet with USDC on the seller's network. **Check for an existing nustuf wallet first** (it is the default and needs no account or API key); only use Locus if the user wants it.
 
 ### Option A: nustuf-generated wallet (default)
 
-See "Alternative: no Locus, use a nustuf-generated wallet" below.
+```bash
+nustuf wallet show --role buyer --testnet   # Base Sepolia; drop --testnet for Base mainnet
+```
+
+The balance shown is for that network only, so match it to the seller's network. If there is no wallet, create one:
+
+```bash
+nustuf wallet create --role buyer --network eip155:8453   # or eip155:84532 for Base Sepolia
+```
+
+Tell the user to send USDC on that network to the printed address (paying needs no ETH), and check `nustuf wallet show` until it arrives. `nustuf buy <url>` pays from this wallet when you pass neither `--locus` nor `--buyer-private-key-file`. It is a hot wallet, so suggest small amounts. Never run `nustuf wallet export` or ask the user to paste a private key into chat. Do not look for or ask for a `LOCUS_API_KEY` unless the user asked for Locus.
 
 ### Option B: Locus wallet
-
-#### Create a Locus account and wallet
 
 1. Go to https://paywithlocus.com and sign up (or ask your human to)
 2. From the Locus dashboard, create an **agent wallet**
 3. Get your **API key** (starts with `claw_`)
 4. Fund the wallet with USDC on Base (your human can transfer from any wallet)
 
-### Configure nustuf with your Locus credentials
+Save the key with `nustuf config --write-env` (it prompts and writes `.env`), or set `LOCUS_API_KEY` in the environment, or put `{ "apiKey": "..." }` in `.locus.json`. Check the balance:
 
 ```bash
-nustuf config --write-env
-```
-
-This will prompt for your Locus API key and save it to `.env`. Alternatively, set the environment variable directly:
-
-```bash
-export LOCUS_API_KEY=claw_your_key_here
-```
-
-### Verify your wallet
-
-```bash
-# Check balance
 curl -s -H "x-api-key: $LOCUS_API_KEY" https://beta-api.paywithlocus.com/api/pay/balance
 ```
-
-### Alternative: no Locus, use a nustuf-generated wallet
-
-Option A details. Any wallet with USDC on the seller's network can pay, so a Locus account is optional. Check for a wallet, and create one if there is none:
-
-```bash
-nustuf wallet show --role buyer
-nustuf wallet create --role buyer --network eip155:8453   # or eip155:84532 for Base Sepolia
-```
-
-Tell the user to send USDC on that network to the printed address (paying needs no ETH). `nustuf wallet show --role buyer` shows the balance so you can tell when it arrives. `nustuf buy <url>` then pays from this wallet automatically when you don't pass `--locus` or `--buyer-private-key-file`. It is a hot wallet, so suggest small amounts. Never run `nustuf wallet export` or ask the user to paste a private key into chat.
 
 ## Step 2: Find content to buy
 
@@ -112,7 +90,7 @@ By default the file is saved to `~/Downloads/nustuf/` with the server's filename
 To choose the location, `--out` takes a **file path**, not a directory (a directory is rejected). Missing folders are created.
 
 ```bash
-nustuf buy <release-url> --locus --out ~/Documents/purchase.bin
+nustuf buy <release-url> --out ~/Documents/purchase.bin
 ```
 
 ## How it works
@@ -136,15 +114,18 @@ With the nustuf wallet, the CLI answers the server's `402 Payment Required` by s
 
 ## Spending controls
 
-Humans configure via Locus dashboard:
+With Locus, humans set limits in the Locus dashboard:
 - **Allowance** — total USDC budget
 - **Max transaction size** — per-purchase cap
 - **Approval threshold** — purchases above this require human approval
 
+The nustuf buyer wallet has no limits of its own: its balance is the limit, so keep it small.
+
 ## Error handling
 
-- `INSUFFICIENT_BALANCE` — wallet needs funding, ask your human
-- `SPENDING_LIMIT_EXCEEDED` — needs human approval via Locus dashboard
-- `RELEASE_EXPIRED` — content no longer available
-- `NETWORK_ERROR` — retry with backoff
-- `402 Payment Required` — normal, this means payment is needed (not an error)
+`nustuf buy` exits non-zero with a message on stderr. Read it and act on it:
+
+- Not enough USDC: the wallet needs funding on the seller's network; ask your human
+- Locus spending limit hit: needs human approval in the Locus dashboard
+- Sale ended or URL unreachable: the drop is over or its host is offline; nothing was charged
+- `402 Payment Required` from the URL itself is normal: it is how the price is quoted, not an error

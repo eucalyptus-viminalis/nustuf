@@ -9,6 +9,20 @@ import { normalizeTunnelProvider, pickFunnelPublicPort, startTunnel, tunnelPrefl
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 
+if (argv.includes("--help") || argv.includes("-h")) {
+  console.log("nustuf feed-ui");
+  console.log("");
+  console.log("Usage");
+  console.log("  nustuf feed-ui [--port <port>] [--testnet] [--public [--tunnel <tailscale|cloudflared>]]");
+  console.log("");
+  console.log("Options");
+  console.log("  --port <port>       Local port (default: PORT env var, else 3000)");
+  console.log("  --testnet           Read the Base Sepolia registry instead of Base mainnet");
+  console.log("  --public            Also expose the feed at a public URL");
+  console.log("  --tunnel <name>     tailscale (default, stable URL) or cloudflared (temporary URL)");
+  process.exit(0);
+}
+
 function flagValue(name) {
   const i = argv.indexOf(name);
   return i === -1 ? undefined : argv[i + 1];
@@ -49,8 +63,6 @@ const server = createServer((req, res) => {
 let tunnelProc = null;
 let shuttingDown = false;
 
-// Same providers as `nustuf publish --public`. Tailscale Funnel gives a stable URL and picks a
-// public port no other Funnel is using; cloudflared gives a temporary quick-tunnel URL.
 function openTunnel() {
   const preflight = tunnelPreflight(tunnelProvider);
   if (!preflight.ok) {

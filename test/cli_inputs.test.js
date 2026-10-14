@@ -1,6 +1,3 @@
-// `nustuf buy` handles money, so its input checks must fail fast, before any request
-// (and so before any payment). Each case runs the real CLI and expects a non-zero exit
-// with a clear message; none of them touches the network.
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -17,7 +14,6 @@ let workDir;
 let home;
 
 before(() => {
-  // Empty cwd/HOME so dotenv, .locus.json and saved wallets cannot leak in.
   workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nustuf-buy-"));
   home = path.join(workDir, "home");
   fs.mkdirSync(home);
