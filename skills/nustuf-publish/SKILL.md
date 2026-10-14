@@ -12,7 +12,7 @@ metadata:
       bins: ["nustuf"]
     install:
       - kind: shell
-        command: "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g ."
+        command: "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && pnpm install && pnpm link --global"
         label: "Install nustuf CLI from GitHub"
   author: eucalyptus-viminalis
 ---
@@ -32,7 +32,7 @@ Publish content behind an x402 payment gate and announce the release on-chain so
 
 ## Prerequisites
 
-- `nustuf` installed from GitHub (see the install block above) and `npm link`ed or installed globally.
+- `nustuf` installed from GitHub with pnpm and linked globally (see the install block above).
 - Tailscale installed and logged in for `--public` (see "Tailscale setup" in the README: MagicDNS, HTTPS certificates and Funnel must be enabled). Without Tailscale, add `--tunnel cloudflared` for a temporary URL.
 - For `--announce`: a dedicated low-value key that pays a little gas. Easiest is a nustuf-generated wallet: run `nustuf wallet show --role seller`, and if none exists run `nustuf wallet create --role seller --network <caip2>` and tell the user to send a little ETH on that network to the printed address. The seller wallet's address also works as `--pay-to`.
 - For mainnet payments: CDP keys (see the README). To try without them, sell on Base Sepolia with `--network eip155:84532` and announce with `--testnet`.

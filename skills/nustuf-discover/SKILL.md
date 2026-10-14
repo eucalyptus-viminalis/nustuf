@@ -12,7 +12,7 @@ metadata:
       bins: ["nustuf"]
     install:
       - kind: shell
-        command: "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && npm install -g ."
+        command: "git clone https://github.com/eucalyptus-viminalis/nustuf.git && cd nustuf && pnpm install && pnpm link --global"
         label: "Install nustuf CLI from GitHub"
   author: eucalyptus-viminalis
 ---

@@ -32,7 +32,7 @@ A full publish, discover and buy run, with terminal output, is in [`demo/termina
 
 | Need | For | Notes |
 |---|---|---|
-| Node.js 18+ and npm | everything | nustuf is not on the npm registry yet, so install from source (below). |
+| Node.js 18+ and [pnpm](https://pnpm.io/installation) | everything | nustuf is not on the npm registry yet, so install from source (below). Running the tests needs Node 21+. |
 | [Tailscale](https://tailscale.com/download) | `publish --public` (selling) | Free Personal plan is enough. Install it, run `tailscale up`, then in the [admin console](https://login.tailscale.com/admin) enable **MagicDNS** and **HTTPS certificates**, and allow **Funnel** (the first `publish --public` run prints an enable link if it is still off). This gives your drop a stable `https://<machine>.<tailnet>.ts.net` URL. No Tailscale? Use `--tunnel cloudflared` (install [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)) for a temporary URL that changes on restart. |
 | A wallet with USDC (nustuf-generated, or Locus) | `buy` | Run `nustuf wallet create --role buyer` and fund it (see Wallets), or use a Locus wallet via [`skills/nustuf-buy/SKILL.md`](skills/nustuf-buy/SKILL.md). Buying and discovering need no Tailscale. |
 | CDP API keys | mainnet payments | See Configuration. Skip by selling on Base Sepolia. |
@@ -44,8 +44,8 @@ nustuf is not on the npm registry yet, so install it from source:
 ```bash
 git clone https://github.com/eucalyptus-viminalis/nustuf.git
 cd nustuf
-npm install
-npm link  # makes `nustuf` available globally
+pnpm install
+pnpm link --global  # makes `nustuf` available globally
 ```
 
 > **🤖 Agents:** Check the `skills/` directory for step-by-step guides:
@@ -230,8 +230,9 @@ NustufRegistry is deployed at the same address on both networks:
 ## Tests
 
 ```bash
-pnpm test                # unit tests, plus integration tests that start the real server
+pnpm test             # unit tests, plus integration tests that start the real server
 pnpm test:contracts   # Foundry tests for NustufRegistry
+pnpm check            # version sync, no machine-specific paths, skill command scope, terminology
 ```
 
 The integration tests run the server against a fake x402 facilitator on localhost, so they need no wallet, network access or credentials. They check that an unpaid download gets `402 Payment Required` with the right payment requirements, and that download codes are enforced. `pnpm test` needs Node 21 or later.

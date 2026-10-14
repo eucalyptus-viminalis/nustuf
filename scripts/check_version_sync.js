@@ -27,7 +27,7 @@ function extractSkillVersion(skillMd) {
 }
 
 function isSupportedVersion(v) {
-  return /^\d{4}\.\d{1,2}\.\d+(?:-beta\.\d+)?$/.test(v);
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/.test(v);
 }
 
 const pkgPath = path.join(repoRoot, "package.json");
@@ -40,7 +40,7 @@ if (!pkgVersion) {
 
 if (!isSupportedVersion(pkgVersion)) {
   console.error(`[version-sync] invalid version format: ${pkgVersion}`);
-  console.error("[version-sync] expected YYYY.M.P or YYYY.M.P-beta.N");
+  console.error("[version-sync] expected semver MAJOR.MINOR.PATCH");
   process.exit(1);
 }
 

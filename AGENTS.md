@@ -5,7 +5,6 @@
 One version number covers the whole project. These must always match:
 
 - `package.json` `version`
-- `package-lock.json` `version` (top level) and `packages[""].version`
 - `version:` in the frontmatter of every `skills/*/SKILL.md` (`nustuf-buy`, `nustuf-publish`, `nustuf-discover`)
 
 The skills are used together and call the same CLI, so they move in lockstep. Bump all of them in the same commit, even if a given skill's text did not change.
@@ -18,7 +17,13 @@ Pre-1.0 rules:
 Check that everything agrees:
 
 ```bash
-grep -h '^version:' skills/*/SKILL.md; grep -m1 '"version"' package.json package-lock.json; nustuf --version
+pnpm check
 ```
 
+`pnpm check` also runs the other repo checks (no machine-specific paths, skill command scope, download-code terminology). CI runs it on every push and pull request.
+
 Commit the bump on its own, as `chore: bump version to X.Y.Z for <reason>`.
+
+## Conventions
+
+- Use pnpm for everything (`pnpm install`, `pnpm test`, `pnpm check`). `packageManager` in `package.json` pins the version.

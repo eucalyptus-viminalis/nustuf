@@ -9,11 +9,14 @@ const repoRoot = path.resolve(__dirname, "..");
 
 const includeRoots = [
   "README.md",
-  "RELEASE.md",
-  "CONTRIBUTING.md",
+  "AGENTS.md",
+  "docs",
   ".github",
   "skills",
   "scripts",
+  "src",
+  "test",
+  "integrations",
 ];
 
 const allowedExt = new Set([

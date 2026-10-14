@@ -1,7 +1,7 @@
 {
   "name": "nustuf",
   "version": "0.10.0",
-  "description": "Agent-native content marketplace — discover, buy, and publish with Locus payments",
+  "description": "Agent-native content marketplace \u2014 discover, buy, and publish with Locus payments",
   "type": "module",
   "main": "src/index.js",
   "files": [
@@ -22,7 +22,8 @@
     "dev": "node --watch src/index.js",
     "cli": "node scripts/cli.js",
     "test": "node --test \"test/*.test.js\"",
-    "test:contracts": "cd contracts && forge test"
+    "test:contracts": "cd contracts && forge test",
+    "check": "node scripts/check_version_sync.js && node scripts/check_no_local_paths.js && bash scripts/check_skill_security.sh && bash scripts/check_download_code_terminology.sh"
   },
   "keywords": [
     "x402",
@@ -52,5 +53,11 @@
     "express": "^5.2.1",
     "viem": "^2.45.2"
   },
-  "packageManager": "npm@10.9.0"
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "bufferutil",
+      "utf-8-validate"
+    ]
+  }
 }

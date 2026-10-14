@@ -6,8 +6,7 @@ cd "$REPO_DIR"
 
 TARGETS=(
   "README.md"
-  "CHANGELOG.md"
-  ".env.example"
+  "docs"
   "scripts/cli.js"
   "scripts/publish.js"
   "scripts/buy.js"
@@ -18,7 +17,7 @@ TARGETS=(
 
 LEGACY_TERM="pass""word"
 
-if rg -n -i --word-regexp "$LEGACY_TERM" "${TARGETS[@]}"; then
+if grep -rn -i -w -- "$LEGACY_TERM" "${TARGETS[@]}"; then
   echo "[download-code-terminology] FAIL: found banned legacy access-secret term in user-facing surfaces."
   exit 1
 fi
